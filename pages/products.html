@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Products - CROCS RWANDA</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <nav>
+        <div class="logo">CROCS RWANDA</div>
+        <ul>
+            <li><a href="../index.html">Home</a></li>
+            <li><a href="products.html">Products</a></li>
+            <li><a href="contact.html">Contact</a></li>
+            <li><a href="cart.html">Cart <span id="cart-count">0</span></a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <h1 class="products-title">Our Products</h1>
+
+        <div class="product-grid">
+            <div class="product-card">
+                <button class="quick-view-btn" aria-label="Quick view for Classic Green Crocs"><i class="fas fa-eye"></i></button>
+                <button class="wishlist-btn" aria-label="Add Classic Green Crocs to wishlist"><i class="fas fa-heart"></i></button>
+                <img src="../images/classic-green.jpg" alt="Classic Green Crocs" class="product-image">
+                <div class="product-info">
+                    <h3>Classic Green Crocs</h3>
+                    <div class="product-rating">
+                        <i class="fas fa-star"></i>
+                        <span>4.5 (128 reviews)</span>
+                    </div>
+                    <p>Comfortable and stylish classic crocs in vibrant green</p>
+                    <div class="size-selector">
+                        <select>
+                            <option>Select Size</option>
+                            <option>US 6</option>
+                            <option>US 7</option>
+                            <option>US 8</option>
+                        </select>
+                    </div>
+                    <p class="product-price">$29.99</p>
+                    <button class="add-to-cart-btn" onclick="addToCart(1)">Add to Cart</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>Quick Links</h3>
+                <ul>
+                    <li><a href="about.html">About Us</a></li>
+                    <li><a href="shipping.html">Shipping Info</a></li>
+                    <li><a href="returns.html">Returns Policy</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h3>Connect With Us</h3>
+                <div class="social-links">
+                    <a href="https://www.facebook.com/crocsrwanda" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><i class="fab fa-facebook"></i></a>
+                    <a href="https://www.instagram.com/crocsrwanda/" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+                    <a href="https://x.com/crocsrwanda" target="_blank" rel="noopener noreferrer" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+                </div>
+            </div>
+            <div class="footer-section">
+                <h3>Newsletter</h3>
+                <form class="newsletter-form">
+                    <input type="email" placeholder="Enter your email">
+                    <button type="submit">Subscribe</button>
+                </form>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2024 CROCS RWANDA. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="../js/main.js"></script>
+</body>
+</html>

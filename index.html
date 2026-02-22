@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Discover comfort and style with CROCS RWANDA's exclusive collection of Crocs. Shop now for the latest designs.">
+    <meta name="keywords" content="Crocs, Rwanda, Shoes, Sandals, Comfortable Footwear">
+    <meta name="author" content="CROCS RWANDA">
+    <title>CROCS RWANDA</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+<nav>
+    <div class="logo">
+        <span>CROCS RWANDA</span>
+    </div>
+    <ul>
+        <li>
+            <form action="/search" method="GET" class="search-bar">
+                <input type="search" name="q" placeholder="Search products..." aria-label="Search products">
+                <button type="submit"><i class="fas fa-search"></i></button>
+            </form>
+        </li>
+        <li><a href="pages/account.html"><i class="fas fa-user"></i> Account</a></li>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="pages/products.html">Products</a></li>
+        <li><a href="pages/contact.html">Contact</a></li>
+        <li><a href="pages/cart.html" aria-label="View Cart">Cart <i class="fas fa-shopping-cart"></i>
+                <span id="cart-count">0</span>
+            </a>
+        </li>
+    </ul>
+</nav>
+
+<section class="hero">
+    <div class="hero-content">
+        <h1>Welcome to CROCS RWANDA</h1>
+        <p>Discover comfort and style with our exclusive collection</p>
+        <div class="hero-buttons">
+            <a href="pages/products.html" class="cta-button">Shop Now</a>
+            <a href="#featured" class="secondary-button">View Featured</a>
+        </div>
+    </div>
+    <div class="hero-image">
+        <img src="images/hero-crocs.png" alt="Featured Crocs Collection">
+    </div>
+</section>
+
+<section id="featured">
+    <h2>Featured Products</h2>
+    <div class="product-grid"></div>
+</section>
+
+<div id="quickViewModal" class="modal">
+    <img id="modalProductImage" alt="Product Image">
+    <h3 id="modalProductName"></h3>
+    <p id="modalProductPrice"></p>
+</div>
+
+<footer>
+    <div class="footer-content">
+        <div class="footer-section">
+            <h3>Quick Links</h3>
+            <ul>
+                <li><a href="about.html">About Us</a></li>
+                <li><a href="shipping.html">Shipping Info</a></li>
+                <li><a href="returns.html">Returns Policy</a></li>
+            </ul>
+        </div>
+        <div class="footer-section">
+            <h3>Connect With Us</h3>
+            <div class="social-links">
+                <a href="https://www.facebook.com/crocsrwanda" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><i class="fab fa-facebook"></i></a>
+                <a href="https://www.instagram.com/crocsrwanda/" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+                <a href="https://x.com/crocsrwanda" target="_blank" rel="noopener noreferrer" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+            </div>
+        </div>
+        <div class="footer-section">
+            <h3>Newsletter</h3>
+            <form class="newsletter-form" onsubmit="return validateNewsletterForm()">
+                <input type="email" placeholder="Enter your email" required>
+                <button type="submit">Subscribe</button>
+            </form>
+        </div>
+    </div>
+    <button id="backToTop" class="back-to-top" onclick="scrollToTop()" aria-label="Back to top">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+    <div class="footer-bottom">
+        <p>© 2024 CROCS RWANDA. All rights reserved.</p>
+    </div>
+</footer>
+
+<script>
+    function validateNewsletterForm() {
+        const email = document.querySelector('.newsletter-form input[type="email"]').value;
+        if (!email.includes('@')) {
+            alert('Please enter a valid email address.');
+            return false;
+        }
+        alert('Thank you for subscribing!');
+        return true;
+    }
+
+    function scrollToTop() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+</script>
+<script src="js/products.js"></script>
+<script src="js/main.js"></script>
+<script src="js/cart.js"></script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Tracking - CROCS RWANDA</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <nav>
+        <div class="logo">CROCS RWANDA</div>
+        <ul>
+            <li><a href="../index.html">Home</a></li>
+            <li><a href="products.html">Products</a></li>
+            <li><a href="contact.html">Contact</a></li>
+            <li><a href="cart.html">Cart</a></li>
+        </ul>
+    </nav>
+
+    <div class="tracking-container">
+        <h1>Track Your Order</h1>
+        <div class="tracking-form">
+            <input type="text" id="orderNumber" placeholder="Enter Order Number">
+            <button onclick="trackOrder()" aria-label="Track Order">Track</button>
+        </div>
+
+        <div id="tracking-result">
+            <div class="tracking-status">
+                <div class="status-line"></div>
+                <div class="status-point active" aria-current="step">
+                    <span class="status-label">Order Placed</span>
+                </div>
+                <div class="status-point">
+                    <span class="status-label">Processing</span>
+                </div>
+                <div class="status-point">
+                    <span class="status-label">Shipped</span>
+                </div>
+                <div class="status-point">
+                    <span class="status-label">Delivered</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="live-updates-container">
+            <h2>Live Updates</h2>
+            <div id="live-updates">
+                <p>No live updates available at the moment.</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/tracking.js"></script>
+</body>
+</html>

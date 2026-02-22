@@ -1,1 +1,25 @@
-[![Netlify Status](https://api.netlify.com/api/v1/badges/fc733020-ea6f-4164-a379-27a97f1d7ec3/deploy-status)](https://app.netlify.com/projects/ephemeral-maamoul-fe4937/deploys)
+# CROCS RWANDA
+
+CROCS RWANDA is an online store project for browsing and ordering Crocs products in Rwanda.
+
+## Features
+- Product listing with cart integration
+- Contact form with backend API endpoint
+- Responsive layouts for mobile, tablet, laptop, desktop, and large screens
+
+## Local Run
+1. Install dependencies:
+```bash
+npm install
+```
+2. Start server:
+```bash
+node app.js
+```
+3. Open:
+```text
+http://localhost:3000
+```
+
+## Repository
+GitHub: https://github.com/aimekenzo/CROCS-RWANDA
