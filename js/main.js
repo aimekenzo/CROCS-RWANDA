@@ -1,161 +1,143 @@
-// Product Data
 let products = [];
 
-// Helper Functions for LocalStorage
+function getCatalog() {
+    if (Array.isArray(window.products) && window.products.length > 0) {
+        return window.products;
+    }
+
+    const stored = JSON.parse(localStorage.getItem('products') || '[]');
+    return Array.isArray(stored) ? stored : [];
+}
+
 function getCartItems() {
-    return JSON.parse(localStorage.getItem('cartItems')) || [];
+    return JSON.parse(localStorage.getItem('cartItems') || '[]');
 }
 
 function saveCartItems(items) {
     localStorage.setItem('cartItems', JSON.stringify(items));
 }
 
-// Cart Functions
+function updateCartCount() {
+    const cartItems = getCartItems();
+    const totalQty = cartItems.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+
+    document.querySelectorAll('#cart-count').forEach((node) => {
+        node.textContent = String(totalQty);
+    });
+}
+
 function addToCart(productId) {
     const cartItems = getCartItems();
-    const product = products.find(p => p.id == productId); // loose compare to handle id types
+    const product = products.find((p) => Number(p.id) === Number(productId));
 
     if (!product) {
         alert('Product not found.');
         return;
     }
 
-    if ((product.stock || 0) <= 0) {
+    if ((Number(product.stock) || 0) <= 0) {
         alert('This product is out of stock.');
         return;
     }
 
-    const existing = cartItems.find(item => item.id == product.id);
+    const existing = cartItems.find((item) => Number(item.id) === Number(product.id));
     if (existing) {
-        existing.quantity = (existing.quantity || 1) + 1;
+        existing.quantity = (Number(existing.quantity) || 0) + 1;
     } else {
         cartItems.push({
             id: product.id,
             name: product.name,
             price: Number(product.price) || 0,
             quantity: 1,
-            image: product.image || ''
+            image: product.image || '',
+            description: product.description || ''
         });
     }
 
     saveCartItems(cartItems);
     updateCartCount();
-    alert(`${product.name} has been added to your cart.`);
 }
 
-function updateCartCount() {
-    const cartItems = getCartItems();
-    document.getElementById('cart-count').textContent = cartItems.length;
+function renderStars(rating) {
+    const safeRating = Number(rating) || 0;
+    const full = Math.floor(safeRating);
+    const half = safeRating % 1 >= 0.5 ? '1/2' : '';
+    return `${'*'.repeat(full)}${half}`;
 }
 
-// Product Display
-function displayProducts(products) {
+function displayProducts(items) {
     const productGrid = document.querySelector('.product-grid');
+    if (!productGrid) {
+        return;
+    }
 
-    const productHTML = products.map(product => `
-        <div class="product-card" data-id="${product.id}">
-            <div class="product-badges">
-                ${product.stock < 10 ? '<span class="badge low-stock">Low Stock</span>' : ''}
-            </div>
-            <img src="${product.image}" alt="${product.name}" class="product-image">
-            <div class="product-info">
-                <h3>${product.name}</h3>
-                <div class="product-rating">
-                    <span class="stars">${'★'.repeat(Math.floor(product.rating))}${product.rating % 1 ? '½' : ''}</span>
-                    <span class="rating-count">(${product.reviews.length})</span>
+    const html = items
+        .map((product) => `
+            <div class="product-card" data-id="${product.id}">
+                <div class="product-badges">
+                    ${(Number(product.stock) || 0) < 10 ? '<span class="badge low-stock">Low Stock</span>' : ''}
                 </div>
-                <div class="product-colors">
-                    ${product.colors.map(color => 
-                        `<span class="color-dot" style="background-color: ${color}"></span>`
-                    ).join('')}
+                <img src="${product.image}" alt="${product.name}" class="product-image">
+                <div class="product-info">
+                    <h3>${product.name}</h3>
+                    <p>${product.description || ''}</p>
+                    <div class="product-rating">
+                        <span class="stars">${renderStars(product.rating)}</span>
+                        <span class="rating-count">(${(product.reviews || []).length})</span>
+                    </div>
+                    <div class="product-colors">
+                        ${(product.colors || [])
+                            .map((color) => `<span class="color-dot" style="background-color: ${color}"></span>`)
+                            .join('')}
+                    </div>
+                    <p class="product-price">$${(Number(product.price) || 0).toFixed(2)}</p>
+                    <button onclick="addToCart(${product.id})" class="add-to-cart-btn" aria-label="Add ${product.name} to cart">Add to Cart</button>
+                    <button onclick="openQuickView(${product.id})" class="quick-view-btn" aria-label="Quick view for ${product.name}">Quick View</button>
                 </div>
-                <p class="product-price">$${product.price.toFixed(2)}</p>
-                <button onclick="addToCart(${product.id})" class="add-to-cart-btn" aria-label="Add ${product.name} to cart">
-                    Add to Cart
-                </button>
-                <button onclick="openQuickView(${product.id})" class="quick-view-btn" aria-label="Quick view for ${product.name}">
-                    Quick View
-                </button>
             </div>
-        </div>
-    `).join('');
+        `)
+        .join('');
 
-    productGrid.innerHTML = productHTML;
+    productGrid.innerHTML = html;
 }
 
-// Quick View Modal
 function openQuickView(productId) {
     const modal = document.getElementById('quickViewModal');
-    const product = products.find(p => p.id === productId);
+    if (!modal) {
+        return;
+    }
 
+    const product = products.find((p) => Number(p.id) === Number(productId));
     if (!product) {
         alert('Product not found.');
         return;
     }
 
-    document.getElementById('modalProductImage').src = product.image;
-    document.getElementById('modalProductName').textContent = product.name;
-    document.getElementById('modalProductPrice').textContent = `$${product.price}`;
+    const imgNode = document.getElementById('modalProductImage');
+    const nameNode = document.getElementById('modalProductName');
+    const priceNode = document.getElementById('modalProductPrice');
+
+    if (imgNode) imgNode.src = product.image;
+    if (nameNode) nameNode.textContent = product.name;
+    if (priceNode) priceNode.textContent = `$${(Number(product.price) || 0).toFixed(2)}`;
+
     modal.style.display = 'block';
 }
 
-// Close Modal
-window.onclick = function(event) {
+window.onclick = function (event) {
     const modal = document.getElementById('quickViewModal');
-    if (event.target == modal) {
+    if (modal && event.target === modal) {
         modal.style.display = 'none';
     }
 };
 
-// Fetch Products
-async function fetchProducts() {
-    try {
-        // Replace YOUR_BASE_ID and YOUR_TABLE_NAME and YOUR_API_KEY
-        const url = 'https://api.airtable.com/v0/YOUR_BASE_ID/YOUR_TABLE_NAME';
-        const response = await fetch(url, {
-            headers: {
-                Authorization: 'Bearer YOUR_API_KEY'
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error(`Failed to fetch products (status ${response.status})`);
-        }
-
-        const data = await response.json();
-        // normalize records to fields we expect
-        products = data.records.map(record => {
-            const f = record.fields || {};
-            // colors may be stored as array or JSON string; ensure array
-            let colors = f.colors || [];
-            if (typeof colors === 'string') {
-                try { colors = JSON.parse(colors); } catch { colors = colors.split(',').map(s => s.trim()); }
-            }
-            const image = Array.isArray(f.image) ? (f.image[0]?.url || '') : (f.image || '');
-            return {
-                id: record.id, // use Airtable record id (unique)
-                name: f.name || '',
-                price: Number(f.price) || 0,
-                stock: Number(f.stock) || 0,
-                image,
-                rating: Number(f.rating) || 0,
-                reviews: f.reviews || [],
-                colors
-            };
-        });
-
-        // store for other modules
-        localStorage.setItem('products', JSON.stringify(products));
-        displayProducts(products);
-        updateCartCount();
-    } catch (err) {
-        console.error('Error fetching products:', err);
-        alert('Unable to load products. Check console for details.');
-    }
-}
-
-// Initialize on Page Load
 document.addEventListener('DOMContentLoaded', () => {
-    fetchProducts();
+    products = getCatalog();
+    localStorage.setItem('products', JSON.stringify(products));
+
+    if (products.length > 0) {
+        displayProducts(products);
+    }
+
     updateCartCount();
 });

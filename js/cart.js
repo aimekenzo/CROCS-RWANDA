@@ -1,99 +1,56 @@
 class ShoppingCart {
     constructor() {
-        this.items = JSON.parse(localStorage.getItem('cartItems')) || [];
+        this.items = JSON.parse(localStorage.getItem('cartItems') || '[]');
         this.total = 0;
         this.init();
     }
 
     init() {
         this.updateCartCount();
+
+        if (!document.getElementById('cart-items')) {
+            return;
+        }
+
         this.calculateTotal();
         this.displayCartItems();
         this.displaySavedItems();
         this.addShippingListeners();
     }
 
-    async fetchProductsFromAirtable() {
-        try {
-            const response = await fetch('https://api.airtable.com/v0/YOUR_BASE_ID/products', {
-                headers: {
-                    Authorization: 'Bearer YOUR_API_KEY'
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch products from Airtable');
-            }
-
-            const data = await response.json();
-            const products = data.records.map(record => ({
-                id: record.fields.id,
-                name: record.fields.name,
-                price: record.fields.price,
-                stock: record.fields.stock,
-                image: record.fields.image[0]?.url || '', // Use the first image URL
-                description: record.fields.description || '',
-                quantity: 0 // Default quantity
-            }));
-
-            // Save products to localStorage or a global variable
-            localStorage.setItem('products', JSON.stringify(products));
-            return products;
-        } catch (error) {
-            console.error('Error fetching products:', error);
-            alert('Unable to load products. Please try again later.');
-        }
-    }
-
-    addItem(productId) {
-        const product = products.find(p => p.id === productId);
-        if (product) {
-            const cartItem = {
-                id: product.id,
-                name: product.name,
-                price: product.price,
-                quantity: 1,
-                image: product.image
-            };
-
-            const existingItem = this.items.find(item => item.id === productId);
-            if (existingItem) {
-                existingItem.quantity++;
-            } else {
-                this.items.push(cartItem);
-            }
-
-            this.saveCart();
-            this.updateCartDisplay();
-        }
+    updateCartDisplay() {
+        this.displayCartItems();
+        this.displaySavedItems();
+        this.updateCartCount();
     }
 
     removeItem(productId) {
-        this.items = this.items.filter(item => item.id !== productId);
+        this.items = this.items.filter((item) => Number(item.id) !== Number(productId));
         this.saveCart();
         this.updateCartDisplay();
     }
 
     updateQuantity(productId, change) {
-        const item = this.items.find(item => item.id === productId);
-        if (item) {
-            item.quantity += change;
-            if (item.quantity < 1) item.quantity = 1;
-            this.saveCart();
-            this.updateCartDisplay();
+        const item = this.items.find((entry) => Number(entry.id) === Number(productId));
+        if (!item) {
+            return;
         }
+
+        item.quantity = Math.max(1, (Number(item.quantity) || 1) + Number(change));
+        this.saveCart();
+        this.updateCartDisplay();
     }
 
     calculateTotal() {
-        this.total = this.items.reduce((sum, item) =>
-            sum + (item.price * item.quantity), 0);
+        this.total = this.items.reduce((sum, item) => sum + ((Number(item.price) || 0) * (Number(item.quantity) || 0)), 0);
         return this.total;
     }
 
     updateCartCount() {
-        const cartCount = document.getElementById('cart-count');
-        const itemCount = this.items.reduce((sum, item) => sum + item.quantity, 0);
-        cartCount.textContent = itemCount;
+        const itemCount = this.items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+        document.querySelectorAll('#cart-count').forEach((node) => {
+            node.textContent = String(itemCount);
+        });
     }
 
     saveCart() {
@@ -104,18 +61,31 @@ class ShoppingCart {
 
     displayCartItems() {
         const cartContainer = document.getElementById('cart-items');
-        let subtotal = 0;
-
-        cartContainer.innerHTML = '';
-
-        if (this.items.length === 0) {
-            cartContainer.innerHTML = '<p>Your cart is empty. Start shopping now!</p>';
-            document.querySelector('.checkout-btn').disabled = true;
+        const checkoutBtn = document.querySelector('.checkout-btn');
+        if (!cartContainer) {
             return;
         }
 
-        this.items.forEach((item, index) => {
-            const itemTotal = item.price * item.quantity;
+        let subtotal = 0;
+        cartContainer.innerHTML = '';
+
+        if (this.items.length === 0) {
+            cartContainer.innerHTML = '<p>Your cart is empty. <a href="products.html">Start shopping now!</a></p>';
+            if (checkoutBtn) {
+                checkoutBtn.disabled = true;
+            }
+            this.updateCartSummary(0);
+            return;
+        }
+
+        if (checkoutBtn) {
+            checkoutBtn.disabled = false;
+        }
+
+        this.items.forEach((item) => {
+            const quantity = Number(item.quantity) || 0;
+            const price = Number(item.price) || 0;
+            const itemTotal = price * quantity;
             subtotal += itemTotal;
 
             const cartItemHTML = `
@@ -127,7 +97,7 @@ class ShoppingCart {
                     </div>
                     <div class="quantity-controls">
                         <button class="quantity-btn" onclick="cart.updateQuantity(${item.id}, -1)">-</button>
-                        <span>${item.quantity}</span>
+                        <span>${quantity}</span>
                         <button class="quantity-btn" onclick="cart.updateQuantity(${item.id}, 1)">+</button>
                     </div>
                     <div>$${itemTotal.toFixed(2)}</div>
@@ -141,15 +111,26 @@ class ShoppingCart {
     }
 
     updateCartSummary(subtotal) {
-        const shipping = subtotal > 0 ? 5 : 0;
-        document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
-        document.getElementById('shipping').textContent = `$${shipping.toFixed(2)}`;
-        document.getElementById('total').textContent = `$${(subtotal + shipping).toFixed(2)}`;
+        const subtotalNode = document.getElementById('subtotal');
+        const shippingNode = document.getElementById('shipping');
+        const totalNode = document.getElementById('total');
+        if (!subtotalNode || !shippingNode || !totalNode) {
+            return;
+        }
+
+        const shipping = subtotal > 0 ? Number((document.querySelector('input[name="shipping"]:checked')?.value || 5)) : 0;
+
+        subtotalNode.textContent = `$${subtotal.toFixed(2)}`;
+        shippingNode.textContent = `$${shipping.toFixed(2)}`;
+        totalNode.textContent = `$${(subtotal + shipping).toFixed(2)}`;
     }
 
     displaySavedItems() {
-        const savedItems = JSON.parse(localStorage.getItem('savedItems')) || [];
+        const savedItems = JSON.parse(localStorage.getItem('savedItems') || '[]');
         const savedContainer = document.getElementById('saved-items');
+        if (!savedContainer) {
+            return;
+        }
 
         if (savedItems.length === 0) {
             savedContainer.innerHTML = '<p>No saved items</p>';
@@ -161,7 +142,7 @@ class ShoppingCart {
                 <img src="${item.image}" alt="${item.name}">
                 <div>
                     <h3>${item.name}</h3>
-                    <p>$${item.price}</p>
+                    <p>$${Number(item.price || 0).toFixed(2)}</p>
                 </div>
                 <button onclick="cart.moveToCart(${index})" class="add-to-cart-btn">Move to Cart</button>
             </div>
@@ -169,38 +150,51 @@ class ShoppingCart {
     }
 
     moveToCart(index) {
-        let savedItems = JSON.parse(localStorage.getItem('savedItems')) || [];
+        const savedItems = JSON.parse(localStorage.getItem('savedItems') || '[]');
         const itemToMove = savedItems.splice(index, 1)[0];
-        this.items.push(itemToMove);
+        if (!itemToMove) {
+            return;
+        }
+
+        const existing = this.items.find((item) => Number(item.id) === Number(itemToMove.id));
+        if (existing) {
+            existing.quantity = (Number(existing.quantity) || 0) + (Number(itemToMove.quantity) || 1);
+        } else {
+            this.items.push({ ...itemToMove, quantity: Number(itemToMove.quantity) || 1 });
+        }
 
         localStorage.setItem('savedItems', JSON.stringify(savedItems));
         this.saveCart();
-        this.displayCartItems();
-        this.displaySavedItems();
+        this.updateCartDisplay();
     }
 
     addShippingListeners() {
-        document.querySelectorAll('input[name="shipping"]').forEach(option => {
+        const shippingOptions = document.querySelectorAll('input[name="shipping"]');
+        if (!shippingOptions.length) {
+            return;
+        }
+
+        shippingOptions.forEach((option) => {
             option.addEventListener('change', this.updateShipping.bind(this));
         });
     }
 
     updateShipping() {
-        const selectedShipping = parseFloat(document.querySelector('input[name="shipping"]:checked').value);
-        const subtotal = parseFloat(document.getElementById('subtotal').textContent.replace('$', ''));
-        document.getElementById('shipping').textContent = `$${selectedShipping.toFixed(2)}`;
-        document.getElementById('total').textContent = `$${(subtotal + selectedShipping).toFixed(2)}`;
+        const subtotalText = document.getElementById('subtotal')?.textContent || '$0.00';
+        const subtotal = parseFloat(subtotalText.replace('$', '')) || 0;
+        this.updateCartSummary(subtotal);
     }
 }
 
-// Initialize cart
 const cart = new ShoppingCart();
+window.cart = cart;
 
-// Add event listeners for cart functionality
-document.addEventListener('DOMContentLoaded', async () => {
-    const products = await cart.fetchProductsFromAirtable();
-    // You can now use the products variable as needed
-    cart.displayCartItems();
-    cart.displaySavedItems();
-    cart.addShippingListeners();
+document.addEventListener('DOMContentLoaded', () => {
+    cart.updateCartCount();
+
+    if (document.getElementById('cart-items')) {
+        cart.displayCartItems();
+        cart.displaySavedItems();
+        cart.addShippingListeners();
+    }
 });
