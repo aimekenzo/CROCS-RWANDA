@@ -13,6 +13,7 @@
             <li><a href="../index.html">Home</a></li>
             <li><a href="products.html">Products</a></li>
             <li><a href="contact.html">Contact</a></li>
+            <li><a href="admin.html">Admin</a></li>
             <li><a href="cart.html">Cart <span id="cart-count">0</span></a></li>
         </ul>
     </nav>
@@ -62,17 +63,28 @@
 
         <div class="cart-summary">
             <h2>Order Summary</h2>
-            <p>Subtotal: <span id="subtotal">$0.00</span></p>
-            <p>Shipping: <span id="shipping">$5.00</span></p>
+            <div class="cart-select-tools">
+                <label><input type="checkbox" id="select-all-items" checked> Select all items</label>
+                <p>Selected items: <span id="selected-count">0</span></p>
+            </div>
+            <p>Subtotal (selected): <span id="subtotal">$0.00</span></p>
+            <p>Shipping (selected): <span id="shipping">$5.00</span></p>
             <h3>Total: <span id="total">$0.00</span></h3>
-            <button class="checkout-btn">Proceed to Checkout</button>
+            <button id="buy-now-btn" class="checkout-btn">Buy Selected</button>
         </div>
 
         <div class="checkout-form" id="checkoutForm" style="display: none;">
-            <h2>Checkout Details</h2>
-            <form onsubmit="processCheckout(event)">
+            <h2>Checkout & Payment</h2>
+            <div class="checkout-summary-preview">
+                <p>Items: <span id="checkout-items-count">0</span></p>
+                <p>Subtotal: <span id="checkout-subtotal">$0.00</span></p>
+                <p>Shipping: <span id="checkout-shipping">$0.00</span></p>
+                <p><strong>Total: <span id="checkout-total">$0.00</span></strong></p>
+            </div>
+
+            <form id="checkout-payment-form">
                 <div class="form-group">
-                    <h3>Personal Information</h3>
+                    <h3>Customer Information</h3>
                     <label for="full-name">Full Name:</label>
                     <input type="text" id="full-name" placeholder="Full Name" required>
                     <label for="email">Email Address:</label>
@@ -82,19 +94,15 @@
                 </div>
 
                 <div class="form-group">
-                    <h3>Shipping Address</h3>
-                    <label for="street-address">Street Address:</label>
-                    <input type="text" id="street-address" placeholder="Street Address" required>
-                    <label for="city">City:</label>
-                    <input type="text" id="city" placeholder="City" required>
-                    <label for="province">Province:</label>
-                    <input type="text" id="province" placeholder="Province" required>
-                    <label for="postal-code">Postal Code:</label>
-                    <input type="text" id="postal-code" placeholder="Postal Code" required>
+                    <h3>Payment Method</h3>
+                    <div class="payment-methods">
+                        <label><input type="radio" name="payment-method" value="card" checked> Pay with Card</label>
+                        <label><input type="radio" name="payment-method" value="momo"> Pay with MTN MoMo</label>
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <h3>Payment Details</h3>
+                <div class="form-group payment-panel" id="card-payment-panel">
+                    <h3>Card Details</h3>
                     <label for="card-number">Card Number:</label>
                     <input type="text" id="card-number" placeholder="Card Number" required>
                     <div class="card-details">
@@ -105,11 +113,21 @@
                     </div>
                 </div>
 
-                <button type="submit" class="checkout-btn">Complete Purchase</button>
+                <div class="form-group payment-panel" id="momo-payment-panel" style="display: none;">
+                    <h3>MTN MoMo Details</h3>
+                    <label for="momo-number">MTN MoMo Number:</label>
+                    <input type="tel" id="momo-number" placeholder="e.g. 0788XXXXXX">
+                    <label for="momo-name">Registered Name:</label>
+                    <input type="text" id="momo-name" placeholder="Name on MTN MoMo account">
+                </div>
+
+                <button type="submit" class="checkout-btn">Place Order</button>
+                <p id="checkout-feedback"></p>
             </form>
         </div>
     </div>
 
     <script src="../js/cart.js"></script>
+    <script src="../js/nav.js"></script>
 </body>
 </html>

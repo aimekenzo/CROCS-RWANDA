@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - CROCS RWANDA</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <nav>
+        <div class="logo">CROCS RWANDA</div>
+        <ul>
+            <li><a href="../index.html">Home</a></li>
+            <li><a href="products.html">Products</a></li>
+            <li><a href="cart.html">Cart</a></li>
+            <li><a href="admin.html">Admin</a></li>
+            <li><button type="button" id="admin-logout-btn" class="remove-btn">Logout</button></li>
+        </ul>
+    </nav>
+
+    <main class="admin-page">
+        <h1>Admin Dashboard</h1>
+        <p>Manage products, orders, customer DMs, and stock alerts from one screen.</p>
+        <p id="admin-runtime-status" class="admin-runtime-status" role="alert" style="display:none;"></p>
+
+        <div class="admin-tabs">
+            <button type="button" class="admin-tab" data-tab="overview">Overview</button>
+            <button type="button" class="admin-tab active" data-tab="products">Products</button>
+            <button type="button" class="admin-tab" data-tab="orders">Orders</button>
+            <button type="button" class="admin-tab" data-tab="messages">DMs</button>
+            <button type="button" class="admin-tab" data-tab="alerts">Stock Alerts</button>
+        </div>
+
+        <section class="admin-panel" id="panel-overview">
+            <div id="overview-cards" class="overview-cards"></div>
+        </section>
+
+        <section class="admin-panel active" id="panel-products">
+            <h2>Products</h2>
+            <form id="product-form" class="admin-form-grid">
+                <input type="hidden" id="product-id">
+                <input type="text" id="product-name" placeholder="Name" required>
+                <input type="number" id="product-price" placeholder="Price" min="0" step="0.01" required>
+                <input type="number" id="product-stock" placeholder="Stock" min="0" required>
+                <input type="text" id="product-category" placeholder="Category">
+                <input type="text" id="product-image" placeholder="Image URL">
+                <input type="text" id="product-colors" placeholder="Colors (comma separated)">
+                <input type="text" id="product-sizes" placeholder="Sizes (comma separated)">
+                <textarea id="product-description" placeholder="Description"></textarea>
+                <div class="admin-form-actions">
+                    <button type="submit" class="checkout-btn">Save Product</button>
+                    <button type="button" id="product-form-reset" class="remove-btn">Clear</button>
+                </div>
+                <p id="product-feedback" class="admin-feedback"></p>
+            </form>
+            <div id="products-list" class="admin-list"></div>
+        </section>
+
+        <section class="admin-panel" id="panel-orders">
+            <h2>Orders</h2>
+            <div id="orders-list" class="admin-list"></div>
+        </section>
+
+        <section class="admin-panel" id="panel-messages">
+            <h2>Customer DMs</h2>
+            <div id="messages-list" class="admin-list"></div>
+        </section>
+
+        <section class="admin-panel" id="panel-alerts">
+            <h2>Stock Alerts</h2>
+            <div id="alerts-list" class="admin-list"></div>
+        </section>
+
+        <noscript>
+            <p>Please enable JavaScript to use all admin controls (tabs, save, edit, delete).</p>
+        </noscript>
+    </main>
+
+    <script src="../js/admin.js"></script>
+    <script>
+        window.setTimeout(function () {
+            if (window.__adminLoaded) return;
+            var status = document.getElementById('admin-runtime-status');
+            if (!status) return;
+            status.style.display = 'block';
+            status.textContent = 'Admin script failed to load. Hard refresh (Ctrl+F5). If still broken, check /js/admin.js path and browser console.';
+        }, 1000);
+    </script>
+    <script src="../js/nav.js"></script>
+</body>
+</html>

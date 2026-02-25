@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - CROCS RWANDA</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <nav>
+        <div class="logo">CROCS RWANDA</div>
+        <ul>
+            <li><a href="../index.html">Home</a></li>
+            <li><a href="products.html">Products</a></li>
+            <li><a href="contact.html">Contact</a></li>
+            <li><a href="cart.html">Cart</a></li>
+        </ul>
+    </nav>
+
+    <main class="admin-page">
+        <h1>Admin Login</h1>
+        <p>Enter your admin password to access the dashboard.</p>
+
+        <form id="admin-login-form" class="admin-form-grid">
+            <input type="password" id="admin-password" placeholder="Admin password" required>
+            <div class="admin-form-actions">
+                <button type="submit" class="checkout-btn">Login</button>
+            </div>
+            <p id="admin-login-feedback" class="admin-feedback"></p>
+        </form>
+    </main>
+
+    <script src="../js/admin-login.js"></script>
+    <script src="../js/nav.js"></script>
+</body>
+</html>

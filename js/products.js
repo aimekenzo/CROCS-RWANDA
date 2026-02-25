@@ -10,7 +10,10 @@ window.products = [
         image: "https://placehold.co/640x480/2ecc71/ffffff?text=Classic+Green",
         stock: 18,
         rating: 4.6,
-        reviews: ["Comfortable", "Great fit"]
+        reviews: [
+            { user: "Aline", rating: 5, comment: "Very comfortable, I wear them daily." },
+            { user: "Eric", rating: 4, comment: "Great fit and easy to clean." }
+        ]
     },
     {
         id: 2,
@@ -23,7 +26,10 @@ window.products = [
         image: "https://placehold.co/640x480/111827/ffffff?text=Urban+Black",
         stock: 22,
         rating: 4.4,
-        reviews: ["Simple", "Good value"]
+        reviews: [
+            { user: "Maya", rating: 4, comment: "Simple and stylish for quick errands." },
+            { user: "Patrick", rating: 5, comment: "Good value and durable sole." }
+        ]
     },
     {
         id: 3,
@@ -36,7 +42,10 @@ window.products = [
         image: "https://placehold.co/640x480/1e3a8a/ffffff?text=Sport+Navy",
         stock: 14,
         rating: 4.7,
-        reviews: ["Strong sole", "Nice color"]
+        reviews: [
+            { user: "Joy", rating: 5, comment: "Super stable when walking long distances." },
+            { user: "Claude", rating: 4, comment: "Sporty look with great support." }
+        ]
     },
     {
         id: 4,
@@ -47,9 +56,12 @@ window.products = [
         category: "Classic",
         description: "Bright colorway for standout style.",
         image: "https://placehold.co/640x480/f97316/ffffff?text=Sunset+Orange",
-        stock: 9,
+        stock: 0,
         rating: 4.5,
-        reviews: ["Looks great"]
+        reviews: [
+            { user: "Nadia", rating: 5, comment: "Color is amazing in person." },
+            { user: "Sam", rating: 4, comment: "Comfort is top quality." }
+        ]
     },
     {
         id: 5,
@@ -62,7 +74,10 @@ window.products = [
         image: "https://placehold.co/640x480/ec4899/ffffff?text=Rose+Pink",
         stock: 16,
         rating: 4.3,
-        reviews: ["Very light", "Great color"]
+        reviews: [
+            { user: "Diane", rating: 4, comment: "Very light and easy to wear." },
+            { user: "Beata", rating: 4, comment: "Lovely color and true size." }
+        ]
     },
     {
         id: 6,
@@ -75,7 +90,10 @@ window.products = [
         image: "https://placehold.co/640x480/d6b98c/ffffff?text=Sahara+Beige",
         stock: 25,
         rating: 4.2,
-        reviews: ["Nice for summer"]
+        reviews: [
+            { user: "Irene", rating: 4, comment: "Perfect for sunny days." },
+            { user: "Theo", rating: 4, comment: "Comfortable straps and soft sole." }
+        ]
     },
     {
         id: 7,
@@ -88,7 +106,10 @@ window.products = [
         image: "https://placehold.co/640x480/14532d/ffffff?text=Forest+Trek",
         stock: 12,
         rating: 4.8,
-        reviews: ["Very stable", "Best for outdoors"]
+        reviews: [
+            { user: "Kevin", rating: 5, comment: "Excellent grip and cushioning." },
+            { user: "Ariane", rating: 5, comment: "My favorite for weekend walks." }
+        ]
     },
     {
         id: 8,
@@ -101,7 +122,10 @@ window.products = [
         image: "https://placehold.co/640x480/0ea5e9/ffffff?text=Ocean+Blue",
         stock: 27,
         rating: 4.1,
-        reviews: ["Easy wear"]
+        reviews: [
+            { user: "Yvette", rating: 4, comment: "Easy slip-on style." },
+            { user: "Moses", rating: 4, comment: "Good daily pair for home and outside." }
+        ]
     },
     {
         id: 9,
@@ -114,7 +138,10 @@ window.products = [
         image: "https://placehold.co/640x480/581c87/ffffff?text=Midnight+Purple",
         stock: 11,
         rating: 4.4,
-        reviews: ["Stylish"]
+        reviews: [
+            { user: "Sharon", rating: 4, comment: "Unique color, lots of compliments." },
+            { user: "Jean", rating: 5, comment: "Comfortable from first wear." }
+        ]
     },
     {
         id: 10,
@@ -127,6 +154,9 @@ window.products = [
         image: "https://placehold.co/640x480/f3f4f6/111827?text=Cloud+White",
         stock: 20,
         rating: 4.5,
-        reviews: ["Clean design", "Very comfy"]
+        reviews: [
+            { user: "Bella", rating: 5, comment: "Looks clean and feels premium." },
+            { user: "Emile", rating: 4, comment: "Great comfort all day." }
+        ]
     }
 ];
