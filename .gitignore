@@ -12,3 +12,6 @@ Thumbs.db
 coverage/
 dist/
 build/
+server.out.log
+server.err.log
+LAUNCH_STATE.md

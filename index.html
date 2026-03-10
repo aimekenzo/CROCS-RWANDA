@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Discover comfort and style with CROCS RWANDA's exclusive collection of Crocs. Shop now for the latest designs.">
-    <meta name="keywords" content="Crocs, Rwanda, Shoes, Sandals, Comfortable Footwear">
+    <meta name="description" content="Shop Crocs Rwanda for comfort-first footwear, live product availability, simple checkout, and order tracking.">
+    <meta name="keywords" content="Crocs Rwanda, footwear, clogs, sandals, order tracking, Kigali">
     <meta name="author" content="CROCS RWANDA">
     <title>CROCS RWANDA</title>
     <link rel="stylesheet" href="css/style.css">
@@ -17,39 +17,43 @@
     </div>
     <ul>
         <li>
-            <form action="pages/products.html" method="GET" class="search-bar">
+            <form action="/products" method="GET" class="search-bar">
                 <input type="search" name="q" placeholder="Search products..." aria-label="Search products">
                 <button type="submit"><i class="fas fa-search"></i></button>
             </form>
         </li>
-        <li><a href="pages/account.html"><i class="fas fa-user"></i> Account</a></li>
-        <li><a href="index.html">Home</a></li>
-        <li><a href="pages/products.html">Products</a></li>
-        <li><a href="pages/contact.html">Contact</a></li>
-        <li><a href="pages/admin.html">Admin</a></li>
-        <li><a href="pages/cart.html" aria-label="View Cart">Cart <i class="fas fa-shopping-cart"></i>
-                <span id="cart-count">0</span>
-            </a>
-        </li>
+        <li><a href="/account"><i class="fas fa-user"></i> Account</a></li>
+        <li><a href="/">Home</a></li>
+        <li><a href="/products">Products</a></li>
+        <li><a href="/about">About Us</a></li>
+        <li><a href="/contact">Contact</a></li>
+        <li><a href="/tracking">Track Order</a></li>
+        <li><a href="/cart" aria-label="View Cart">Cart <i class="fas fa-shopping-cart"></i> <span id="cart-count">0</span></a></li>
     </ul>
 </nav>
 
 <section class="hero">
     <div class="hero-content">
-        <h1>Welcome to CROCS RWANDA</h1>
-        <p>Discover comfort and style with our exclusive collection</p>
+        <h1>Comfort-first Crocs styles delivered across Rwanda</h1>
+        <p>Shop the live catalog, choose your size and color, and follow each order from checkout to delivery with direct local support when you need help.</p>
+        <div class="hero-highlights" aria-label="Store highlights">
+            <span>Live stock visibility</span>
+            <span>Order tracking included</span>
+            <span>Kigali-based support</span>
+        </div>
         <div class="hero-buttons">
-            <a href="pages/products.html" class="cta-button">Shop Now</a>
-            <a href="#featured" class="secondary-button">View Featured</a>
+            <a href="/products" class="cta-button">Shop Now</a>
+            <a href="/contact" class="secondary-button">Talk to Support</a>
         </div>
     </div>
     <div class="hero-image">
-        <img src="images/hero-crocs.png" alt="Featured Crocs Collection">
+        <img src="images/hero-crocs.svg" alt="Featured Crocs Collection">
     </div>
 </section>
 
 <section id="featured">
     <h2>Featured Products</h2>
+    <p class="section-intro">This section uses the live store catalog, so customers see real items, current stock, and the same product data used during checkout.</p>
     <div class="product-grid"></div>
 </section>
 
@@ -64,9 +68,10 @@
         <div class="footer-section">
             <h3>Quick Links</h3>
             <ul>
-                <li><a href="pages/about.html">About Us</a></li>
-                <li><a href="pages/shipping.html">Shipping Info</a></li>
-                <li><a href="pages/returns.html">Returns Policy</a></li>
+                <li><a href="/about">About Us</a></li>
+                <li><a href="/contact">Contact</a></li>
+                <li><a href="/shipping">Shipping Info</a></li>
+                <li><a href="/returns">Returns Policy</a></li>
             </ul>
         </div>
         <div class="footer-section">
@@ -77,40 +82,31 @@
                 <a href="https://x.com/crocsrwanda" target="_blank" rel="noopener noreferrer" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
             </div>
         </div>
-        <div class="footer-section">
-            <h3>Newsletter</h3>
-            <form class="newsletter-form" onsubmit="return validateNewsletterForm()">
-                <input type="email" placeholder="Enter your email" required>
-                <button type="submit">Subscribe</button>
-            </form>
+        <div class="footer-section footer-support">
+            <h3>Order Support</h3>
+            <p>Need sizing help, delivery guidance, or a bulk order quote?</p>
+            <ul class="footer-support-links">
+                <li><a href="/contact">Send a message</a></li>
+                <li><a href="https://wa.me/250788623298" target="_blank" rel="noopener noreferrer">Chat on WhatsApp</a></li>
+                <li><a href="/tracking">Track an order</a></li>
+            </ul>
         </div>
     </div>
     <button id="backToTop" class="back-to-top" onclick="scrollToTop()" aria-label="Back to top">
         <i class="fas fa-arrow-up"></i>
     </button>
     <div class="footer-bottom">
-        <p>© 2024 CROCS RWANDA. All rights reserved.</p>
+        <p>&copy; 2026 CROCS RWANDA. All rights reserved.</p>
     </div>
 </footer>
 
 <script>
-    function validateNewsletterForm() {
-        const email = document.querySelector('.newsletter-form input[type="email"]').value;
-        if (!email.includes('@')) {
-            alert('Please enter a valid email address.');
-            return false;
-        }
-        alert('Thank you for subscribing!');
-        return true;
-    }
-
     function scrollToTop() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 </script>
-<script src="js/products.js"></script>
 <script src="js/main.js"></script>
 <script src="js/cart.js"></script>
-    <script src="js/nav.js"></script>
+<script src="js/nav.js"></script>
 </body>
 </html>

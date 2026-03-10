@@ -10,11 +10,12 @@
     <nav>
         <div class="logo">CROCS RWANDA</div>
         <ul>
-            <li><a href="../index.html">Home</a></li>
-            <li><a href="products.html">Products</a></li>
-            <li><a href="contact.html">Contact</a></li>
-            <li><a href="admin.html">Admin</a></li>
-            <li><a href="cart.html">Cart <span id="cart-count">0</span></a></li>
+            <li><a href="/">Home</a></li>
+            <li><a href="/products">Products</a></li>
+            <li><a href="/about">About Us</a></li>
+            <li><a href="/contact">Contact</a></li>
+            <li><a href="/tracking">Track Order</a></li>
+            <li><a href="/cart">Cart <span id="cart-count">0</span></a></li>
         </ul>
     </nav>
 
@@ -25,7 +26,7 @@
         </div>
 
         <div id="empty-cart-message" style="display: none;">
-            <p>Your cart is empty. <a href="products.html">Start shopping now!</a></p>
+            <p>Your cart is empty. <a href="/products">Start shopping now!</a></p>
         </div>
 
         <div class="saved-items-container">
@@ -96,29 +97,23 @@
                 <div class="form-group">
                     <h3>Payment Method</h3>
                     <div class="payment-methods">
-                        <label><input type="radio" name="payment-method" value="card" checked> Pay with Card</label>
-                        <label><input type="radio" name="payment-method" value="momo"> Pay with MTN MoMo</label>
+                        <label><input type="radio" name="payment-method" value="momo" checked> MTN MoMo Transfer</label>
+                        <label><input type="radio" name="payment-method" value="cod"> Cash on Delivery</label>
                     </div>
                 </div>
 
-                <div class="form-group payment-panel" id="card-payment-panel">
-                    <h3>Card Details</h3>
-                    <label for="card-number">Card Number:</label>
-                    <input type="text" id="card-number" placeholder="Card Number" required>
-                    <div class="card-details">
-                        <label for="expiry-date">Expiry Date:</label>
-                        <input type="text" id="expiry-date" placeholder="MM/YY" required>
-                        <label for="cvv">CVV:</label>
-                        <input type="text" id="cvv" placeholder="CVV" required>
-                    </div>
-                </div>
-
-                <div class="form-group payment-panel" id="momo-payment-panel" style="display: none;">
+                <div class="form-group payment-panel" id="momo-payment-panel">
                     <h3>MTN MoMo Details</h3>
+                    <p>Use the number and name below so we can confirm your transfer before shipping.</p>
                     <label for="momo-number">MTN MoMo Number:</label>
-                    <input type="tel" id="momo-number" placeholder="e.g. 0788XXXXXX">
+                    <input type="tel" id="momo-number" placeholder="e.g. 0788XXXXXX" required>
                     <label for="momo-name">Registered Name:</label>
-                    <input type="text" id="momo-name" placeholder="Name on MTN MoMo account">
+                    <input type="text" id="momo-name" placeholder="Name on MTN MoMo account" required>
+                </div>
+
+                <div class="form-group payment-panel" id="cod-payment-panel" style="display: none;">
+                    <h3>Cash on Delivery</h3>
+                    <p>Pay when your order arrives. Our team may contact you to confirm delivery details before dispatch.</p>
                 </div>
 
                 <button type="submit" class="checkout-btn">Place Order</button>

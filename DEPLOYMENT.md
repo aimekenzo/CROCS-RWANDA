@@ -42,6 +42,28 @@
 4. Confirm `http://your-domain/api/health` returns `emailConfigured: true` if email is expected.
 5. Verify HTTPS is enabled on the deployed domain.
 6. Test admin login, order placement, order tracking, and contact form in production.
+7. Run `npm run check` locally before pushing the final launch build.
+
+## Launch Runbook
+1. Confirm the production branch contains the final launch commit only.
+2. Run `npm run check:syntax`.
+3. Start the app locally and run `npm run check:smoke`.
+4. Verify the live catalog in admin and confirm products have real names, prices, stock, and images.
+5. Place one test order in production and confirm:
+   `order saved`, `stock reduced`, `tracking works`, `status update works`.
+6. Submit one production test contact message and confirm it appears in admin.
+7. If SMTP is enabled, verify both customer and admin emails are delivered.
+8. Confirm the custom domain serves the latest deployment over HTTPS.
+9. Remove any test orders or messages that should not remain in production records.
+10. Only then announce launch publicly.
+
+## Post-Launch Monitoring
+1. Check `/api/health` after launch and again after the first real customer order.
+2. Watch server logs for 401, 404, 409, and 500 responses during the first day.
+3. Review new orders in admin to confirm stock and status updates are behaving normally.
+4. Check contact inbox/admin messages for failed follow-up or delivery questions.
+5. Verify email delivery for order confirmations and contact acknowledgements.
+6. Export or back up products and orders after the first stable launch window.
 
 ## Backup Notes
 - If using MongoDB Atlas, enable automated backups and point-in-time recovery if available.

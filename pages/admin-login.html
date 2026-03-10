@@ -10,18 +10,19 @@
     <nav>
         <div class="logo">CROCS RWANDA</div>
         <ul>
-            <li><a href="../index.html">Home</a></li>
-            <li><a href="products.html">Products</a></li>
-            <li><a href="contact.html">Contact</a></li>
-            <li><a href="cart.html">Cart</a></li>
+            <li><a href="/">Home</a></li>
+            <li><a href="/products">Products</a></li>
+            <li><a href="/about">About Us</a></li>
+            <li><a href="/cart">Cart</a></li>
         </ul>
     </nav>
 
     <main class="admin-page">
         <h1>Admin Login</h1>
-        <p>Enter your admin password to access the dashboard.</p>
+        <p>Enter your admin username and password to access the dashboard.</p>
 
         <form id="admin-login-form" class="admin-form-grid">
+            <input type="text" id="admin-username" placeholder="Admin username" autocomplete="username" required>
             <input type="password" id="admin-password" placeholder="Admin password" required>
             <div class="admin-form-actions">
                 <button type="submit" class="checkout-btn">Login</button>

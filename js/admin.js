@@ -1,7 +1,6 @@
 (function () {
     window.__adminLoaded = true;
 
-    const LOCAL_PRODUCTS_KEY = 'products';
     const state = {
         products: [],
         orders: [],
@@ -29,7 +28,7 @@
         const result = await response.json().catch(() => ({}));
         if (!response.ok) {
             if (response.status === 401) {
-                window.location.href = '/pages/admin-login.html';
+                window.location.href = '/admin-login';
             }
             if (response.status === 404 && path.startsWith('/api/')) {
                 throw new Error('API not found (404). Start backend with "node app.js".');
@@ -43,7 +42,7 @@
         const response = await fetch('/api/admin/session');
         const data = await response.json().catch(() => ({}));
         if (!response.ok || !data.authenticated) {
-            window.location.href = '/pages/admin-login.html';
+            window.location.href = '/admin-login';
             return false;
         }
         return true;
@@ -59,17 +58,8 @@
             } catch (error) {
                 // continue redirect on network error
             }
-            window.location.href = '/pages/admin-login.html';
+            window.location.href = '/admin-login';
         });
-    }
-
-    function getLocalProducts() {
-        const products = JSON.parse(localStorage.getItem(LOCAL_PRODUCTS_KEY) || '[]');
-        return Array.isArray(products) ? products : [];
-    }
-
-    function saveLocalProducts(products) {
-        localStorage.setItem(LOCAL_PRODUCTS_KEY, JSON.stringify(products));
     }
 
     function setupTabs() {
@@ -101,13 +91,7 @@
                 <article class="overview-card"><h3>Open Alerts</h3><p>${c.openAlerts || 0}</p></article>
             `;
         } catch (error) {
-            const localProductsCount = getLocalProducts().length;
-            cards.innerHTML = `
-                <article class="overview-card"><h3>Products (Local)</h3><p>${localProductsCount}</p></article>
-                <article class="overview-card"><h3>Orders</h3><p>-</p></article>
-                <article class="overview-card"><h3>DMs</h3><p>-</p></article>
-                <article class="overview-card"><h3>Open Alerts</h3><p>-</p></article>
-            `;
+            cards.innerHTML = `<p>${error.message}</p>`;
         }
     }
 
@@ -139,26 +123,8 @@
                 </article>
             `).join('');
         } catch (error) {
-            state.products = getLocalProducts();
-            if (!state.products.length) {
-                container.innerHTML = `<p>${error.message}</p>`;
-                return;
-            }
-            container.innerHTML = state.products.map((p) => `
-                <article class="admin-card">
-                    <h3>${p.name}</h3>
-                    <p><strong>Price:</strong> ${money(p.price)}</p>
-                    <p><strong>Stock:</strong> ${p.stock}</p>
-                    <p><strong>Category:</strong> ${p.category || 'General'}</p>
-                    <p><strong>Image URL:</strong> ${p.image ? `<a href="${p.image}" target="_blank" rel="noopener noreferrer">${p.image}</a>` : 'N/A'}</p>
-                    ${p.image ? `<img class="admin-product-preview" src="${p.image}" alt="${p.name}" onerror="this.onerror=null;this.style.display='none';">` : ''}
-                    <p>${p.description || ''}</p>
-                    <div class="admin-row-actions">
-                        <button class="checkout-btn" data-edit-product="${p._id || p.id}">Edit</button>
-                        <button class="remove-btn" data-delete-product="${p._id || p.id}">Delete</button>
-                    </div>
-                </article>
-            `).join('');
+            state.products = [];
+            container.innerHTML = `<p>${error.message}</p>`;
         }
     }
 
@@ -183,11 +149,7 @@
                 await loadProducts();
                 await loadOverview();
             } catch (error) {
-                const next = state.products.filter((p) => String(p._id || p.id) !== String(deleteId));
-                state.products = next;
-                saveLocalProducts(next);
-                await loadProducts();
-                await loadOverview();
+                alert(error.message);
             }
         });
     }
@@ -254,33 +216,7 @@
                 await loadProducts();
                 await loadOverview();
             } catch (error) {
-                const current = getLocalProducts();
-                const localId = id || `local-${Date.now()}`;
-                const localProduct = {
-                    id: localId,
-                    _id: localId,
-                    name: payload.name,
-                    price: payload.price,
-                    stock: payload.stock,
-                    category: payload.category || 'General',
-                    image: payload.image,
-                    colors: Array.isArray(payload.colors) ? payload.colors : String(payload.colors || '').split(',').map((x) => x.trim()).filter(Boolean),
-                    sizes: Array.isArray(payload.sizes) ? payload.sizes : String(payload.sizes || '').split(',').map((x) => x.trim()).filter(Boolean),
-                    description: payload.description
-                };
-
-                const index = current.findIndex((p) => String(p._id || p.id) === String(localId));
-                if (index >= 0) {
-                    current[index] = { ...current[index], ...localProduct };
-                } else {
-                    current.unshift(localProduct);
-                }
-                saveLocalProducts(current);
-                state.products = current;
-                feedback.textContent = `Saved locally. (${error.message})`;
-                clearProductForm();
-                await loadProducts();
-                await loadOverview();
+                feedback.textContent = error.message;
             }
         });
     }
@@ -310,6 +246,9 @@
                             <select data-order-status="${o._id}">
                                 <option value="pending" ${o.status === 'pending' ? 'selected' : ''}>pending</option>
                                 <option value="paid" ${o.status === 'paid' ? 'selected' : ''}>paid</option>
+                                <option value="processing" ${o.status === 'processing' ? 'selected' : ''}>processing</option>
+                                <option value="shipped" ${o.status === 'shipped' ? 'selected' : ''}>shipped</option>
+                                <option value="delivered" ${o.status === 'delivered' ? 'selected' : ''}>delivered</option>
                                 <option value="failed" ${o.status === 'failed' ? 'selected' : ''}>failed</option>
                             </select>
                             <button class="checkout-btn" data-save-order-status="${o._id}">Save Status</button>

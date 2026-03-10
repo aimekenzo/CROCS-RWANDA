@@ -10,19 +10,21 @@
     <nav>
         <div class="logo">CROCS RWANDA</div>
         <ul>
-            <li><a href="../index.html">Home</a></li>
-            <li><a href="products.html">Products</a></li>
-            <li><a href="contact.html">Contact</a></li>
-            <li><a href="cart.html">Cart</a></li>
+            <li><a href="/">Home</a></li>
+            <li><a href="/products">Products</a></li>
+            <li><a href="/about">About Us</a></li>
+            <li><a href="/cart">Cart</a></li>
         </ul>
     </nav>
 
     <div class="tracking-container">
         <h1>Track Your Order</h1>
         <div class="tracking-form">
-            <input type="text" id="orderNumber" placeholder="Enter Order Number">
+            <input type="text" id="orderNumber" placeholder="Enter Order ID">
             <button onclick="trackOrder()" aria-label="Track Order">Track</button>
         </div>
+
+        <p id="tracking-message" class="admin-feedback"></p>
 
         <div id="tracking-result">
             <div class="tracking-status">
@@ -45,7 +47,7 @@
         <div class="live-updates-container">
             <h2>Live Updates</h2>
             <div id="live-updates">
-                <p>No live updates available at the moment.</p>
+                <p>Enter your order ID above to load the latest status.</p>
             </div>
         </div>
     </div>

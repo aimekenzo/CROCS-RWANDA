@@ -10,4 +10,7 @@ const stockAlertSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
+stockAlertSchema.index({ productId: 1, status: 1 });
+stockAlertSchema.index({ createdAt: -1 });
+
 module.exports = mongoose.model('StockAlert', stockAlertSchema);

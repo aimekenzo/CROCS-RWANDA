@@ -1,6 +1,9 @@
+const CART_STORAGE_KEY = 'crocs_rwanda_cart_items';
+const LAST_ORDER_ID_STORAGE_KEY = 'crocs_rwanda_last_order_id';
+
 class ShoppingCart {
     constructor() {
-        this.items = JSON.parse(localStorage.getItem('cartItems') || '[]');
+        this.items = JSON.parse(localStorage.getItem(CART_STORAGE_KEY) || '[]');
         this.selectedItemIds = new Set();
         this.total = 0;
         this.init();
@@ -157,7 +160,7 @@ class ShoppingCart {
     }
 
     saveCart() {
-        localStorage.setItem('cartItems', JSON.stringify(this.items));
+        localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(this.items));
         this.updateCartCount();
         this.calculateTotal();
     }
@@ -172,7 +175,7 @@ class ShoppingCart {
         cartContainer.innerHTML = '';
 
         if (this.items.length === 0) {
-            cartContainer.innerHTML = '<p>Your cart is empty. <a href="products.html">Start shopping now!</a></p>';
+            cartContainer.innerHTML = '<p>Your cart is empty. <a href="/products">Start shopping now!</a></p>';
             if (buyNowBtn) {
                 buyNowBtn.disabled = true;
             }
@@ -478,36 +481,25 @@ class ShoppingCart {
     }
 
     togglePaymentPanels(method) {
-        const cardPanel = document.getElementById('card-payment-panel');
         const momoPanel = document.getElementById('momo-payment-panel');
+        const codPanel = document.getElementById('cod-payment-panel');
 
-        if (!cardPanel || !momoPanel) {
+        if (!momoPanel || !codPanel) {
             return;
         }
 
-        const cardFields = ['card-number', 'expiry-date', 'cvv'];
         const momoFields = ['momo-number', 'momo-name'];
 
         if (method === 'momo') {
-            cardPanel.style.display = 'none';
             momoPanel.style.display = 'grid';
-
-            cardFields.forEach((id) => {
-                const field = document.getElementById(id);
-                if (field) field.required = false;
-            });
+            codPanel.style.display = 'none';
             momoFields.forEach((id) => {
                 const field = document.getElementById(id);
                 if (field) field.required = true;
             });
         } else {
-            cardPanel.style.display = 'grid';
             momoPanel.style.display = 'none';
-
-            cardFields.forEach((id) => {
-                const field = document.getElementById(id);
-                if (field) field.required = true;
-            });
+            codPanel.style.display = 'grid';
             momoFields.forEach((id) => {
                 const field = document.getElementById(id);
                 if (field) field.required = false;
@@ -520,7 +512,7 @@ class ShoppingCart {
         const fullName = document.getElementById('full-name')?.value.trim();
         const email = document.getElementById('email')?.value.trim();
         const phone = document.getElementById('phone')?.value.trim();
-        const method = document.querySelector('input[name="payment-method"]:checked')?.value || 'card';
+        const method = document.querySelector('input[name="payment-method"]:checked')?.value || 'momo';
 
         if (!this.getSelectedItems().length) {
             if (feedback) {
@@ -544,17 +536,7 @@ class ShoppingCart {
             return;
         }
 
-        if (method === 'card') {
-            const cardNumber = document.getElementById('card-number')?.value.trim();
-            const expiry = document.getElementById('expiry-date')?.value.trim();
-            const cvv = document.getElementById('cvv')?.value.trim();
-            if (!cardNumber || !expiry || !cvv) {
-                if (feedback) {
-                    feedback.textContent = 'Please complete your card payment details.';
-                }
-                return;
-            }
-        } else {
+        if (method === 'momo') {
             const momoNumber = document.getElementById('momo-number')?.value.trim();
             const momoName = document.getElementById('momo-name')?.value.trim();
             if (!momoNumber || !momoName) {
@@ -582,9 +564,7 @@ class ShoppingCart {
         }));
 
         const payment = { method };
-        if (method === 'card') {
-            payment.cardNumber = document.getElementById('card-number')?.value.trim() || '';
-        } else {
+        if (method === 'momo') {
             payment.momoNumber = document.getElementById('momo-number')?.value.trim() || '';
             payment.momoName = document.getElementById('momo-name')?.value.trim() || '';
         }
@@ -613,10 +593,17 @@ class ShoppingCart {
                     feedback.textContent = result.message || 'Failed to place order.';
                 }
                 return;
-            }
+                }
 
+            const orderId = String(result.orderId || '').trim();
+            const message = result.message || 'Order placed successfully.';
             if (feedback) {
-                feedback.textContent = `Order placed successfully. Order ID: ${result.orderId}`;
+                if (orderId) {
+                    localStorage.setItem(LAST_ORDER_ID_STORAGE_KEY, orderId);
+                    feedback.innerHTML = `${message} Order ID: <strong>${orderId}</strong>. <a href="/tracking?orderId=${encodeURIComponent(orderId)}">Track this order</a>.`;
+                } else {
+                    feedback.textContent = message;
+                }
             }
 
             const selectedIds = new Set(selectedItems.map((item) => this.getId(item.id)));
@@ -631,7 +618,7 @@ class ShoppingCart {
             if (form) {
                 form.reset();
             }
-            this.togglePaymentPanels('card');
+            this.togglePaymentPanels('momo');
         } catch (error) {
             if (feedback) {
                 feedback.textContent = 'Network error while placing order. Please try again.';

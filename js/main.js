@@ -1,6 +1,8 @@
 ﻿let products = [];
 let allProducts = [];
 const MAX_SUGGESTIONS = 6;
+const PRODUCT_PLACEHOLDER_IMAGE = '/images/product-placeholder.svg';
+const CART_STORAGE_KEY = 'crocs_rwanda_cart_items';
 
 function getProductId(product) {
     return String(product?._id || product?.id || '').trim();
@@ -8,35 +10,6 @@ function getProductId(product) {
 
 function idsEqual(a, b) {
     return String(a || '').trim() === String(b || '').trim();
-}
-
-function getCatalog() {
-    const seeded = Array.isArray(window.products) ? window.products : [];
-    const stored = JSON.parse(localStorage.getItem('products') || '[]');
-    const local = Array.isArray(stored) ? stored : [];
-    return mergeCatalogs(local, seeded);
-}
-
-function mergeCatalogs(...lists) {
-    const merged = [];
-    const seen = new Set();
-
-    lists.flat().forEach((product) => {
-        if (!product || typeof product !== 'object') return;
-
-        const id = getProductId(product);
-        const name = normalize(product.name);
-        const key = id ? `id:${id}` : `name:${name}|price:${Number(product.price) || 0}`;
-        if (seen.has(key)) return;
-        seen.add(key);
-
-        merged.push({
-            ...product,
-            id: id || String(merged.length + 1)
-        });
-    });
-
-    return merged;
 }
 
 function normalize(value) {
@@ -71,11 +44,11 @@ function getSuggestionMatches(query) {
 }
 
 function getCartItems() {
-    return JSON.parse(localStorage.getItem('cartItems') || '[]');
+    return JSON.parse(localStorage.getItem(CART_STORAGE_KEY) || '[]');
 }
 
 function saveCartItems(items) {
-    localStorage.setItem('cartItems', JSON.stringify(items));
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
 }
 
 function updateCartCount() {
@@ -163,18 +136,8 @@ function getAlternativeProducts(soldOutProduct, query) {
 }
 
 async function saveStockAlertRequest(product, email) {
-    const key = 'stockAlertRequests';
-    const existing = JSON.parse(localStorage.getItem(key) || '[]');
     const normalizedEmail = normalize(email);
     const productId = getProductId(product);
-
-    const alreadyExists = existing.some((entry) =>
-        idsEqual(entry.productId, productId) && normalize(entry.email) === normalizedEmail
-    );
-
-    if (alreadyExists) {
-        return { status: 'exists' };
-    }
 
     try {
         const response = await fetch('/api/stock-alerts', {
@@ -187,21 +150,25 @@ async function saveStockAlertRequest(product, email) {
             })
         });
 
-        if (response.ok) {
-            return { status: 'saved' };
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            return {
+                status: 'error',
+                message: result.message || 'Could not save stock alert right now.'
+            };
         }
-    } catch (error) {
-        // fall through to local fallback
-    }
 
-    existing.push({
-        productId,
-        productName: product.name,
-        email: normalizedEmail,
-        createdAt: new Date().toISOString()
-    });
-    localStorage.setItem(key, JSON.stringify(existing));
-    return { status: 'saved' };
+        if ((result.message || '').toLowerCase().includes('already exists')) {
+            return { status: 'exists' };
+        }
+
+        return { status: 'saved' };
+    } catch (error) {
+        return {
+            status: 'error',
+            message: 'Network error. Please try again.'
+        };
+    }
 }
 
 function ensureSoldOutAssistant() {
@@ -313,6 +280,12 @@ function showSoldOutAssistant(soldOutProduct) {
             return;
         }
 
+        if (result.status === 'error') {
+            notifyFeedback.textContent = result.message || 'Could not save your alert right now.';
+            notifyFeedback.className = 'soldout-notify-feedback error';
+            return;
+        }
+
         notifyFeedback.textContent = 'Alert saved. We will notify you when stock returns.';
         notifyFeedback.className = 'soldout-notify-feedback success';
         notifyForm.reset();
@@ -393,7 +366,7 @@ function displayProducts(items) {
                     <div class="product-badges">
                         ${(Number(product.stock) || 0) < 10 ? '<span class="badge low-stock">Low Stock</span>' : ''}
                     </div>
-                    <img src="${product.image}" alt="${product.name}" class="product-image" onerror="this.onerror=null;this.src='https://placehold.co/640x480?text=No+Image';">
+                    <img src="${product.image}" alt="${product.name}" class="product-image" onerror="this.onerror=null;this.src='${PRODUCT_PLACEHOLDER_IMAGE}';">
                     <div class="product-info">
                         <h3>${product.name}</h3>
                         <p>${product.description || ''}</p>
@@ -457,7 +430,11 @@ function addToCartFromCard(button, productId) {
 }
 
 function getProductsPagePath() {
-    return window.location.pathname.includes('/pages/') ? 'products.html' : 'pages/products.html';
+    return '/products';
+}
+
+function isProductsPage() {
+    return window.location.pathname === '/products' || window.location.pathname.endsWith('/products.html');
 }
 
 function applySearch(query) {
@@ -503,7 +480,7 @@ function setupSearchBar() {
         }
 
         function runLiveSearch(query) {
-            const onProductsPage = window.location.pathname.endsWith('/products.html');
+            const onProductsPage = isProductsPage();
             if (!onProductsPage) {
                 return;
             }
@@ -534,7 +511,7 @@ function setupSearchBar() {
             input.value = pickedName;
             hideSuggestions();
 
-            const onProductsPage = window.location.pathname.endsWith('/products.html');
+            const onProductsPage = isProductsPage();
             if (onProductsPage) {
                 applySearch(pickedName);
                 window.history.replaceState({}, '', `?q=${encodeURIComponent(pickedName)}`);
@@ -557,7 +534,7 @@ function setupSearchBar() {
 
         form.addEventListener('submit', (event) => {
             const query = input.value.trim();
-            const onProductsPage = window.location.pathname.endsWith('/products.html');
+            const onProductsPage = isProductsPage();
 
             if (onProductsPage) {
                 event.preventDefault();
@@ -572,7 +549,7 @@ function setupSearchBar() {
 }
 
 function openQuickView(productId) {
-    const modal = ensureProductModal();
+    const modal = ensureProductModal(); 
 
     const product = products.find((p) => idsEqual(getProductId(p), productId));
     if (!product) {
@@ -589,7 +566,7 @@ function openQuickView(productId) {
         <div class="product-modal-content" role="dialog" aria-modal="true" aria-label="${product.name} details">
             <button type="button" class="product-modal-close" aria-label="Close product details">&times;</button>
             <div class="product-modal-grid">
-                <img src="${product.image}" alt="${product.name}" class="product-modal-image" onerror="this.onerror=null;this.src='https://placehold.co/640x480?text=No+Image';">
+                <img src="${product.image}" alt="${product.name}" class="product-modal-image" onerror="this.onerror=null;this.src='${PRODUCT_PLACEHOLDER_IMAGE}';">
                 <div class="product-modal-body">
                     <h2>${product.name}</h2>
                     <p class="product-modal-price">$${(Number(product.price) || 0).toFixed(2)}</p>
@@ -661,28 +638,28 @@ window.onclick = function (event) {
 };
 
 async function loadProductsCatalog() {
-    const localAndSeeded = getCatalog();
     try {
         const response = await fetch('/api/products');
-        const result = await response.json();
-        if (response.ok && Array.isArray(result.products)) {
-            const apiProducts = result.products.map((product) => ({
+        const result = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            return [];
+        }
+
+        return Array.isArray(result.products)
+            ? result.products.map((product) => ({
                 ...product,
                 id: getProductId(product)
-            }));
-            return mergeCatalogs(apiProducts, localAndSeeded);
-        }
+            }))
+            : [];
     } catch (error) {
-        // fallback to local catalog
+        return [];
     }
-
-    return localAndSeeded;
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
     products = await loadProductsCatalog();
     allProducts = [...products];
-    localStorage.setItem('products', JSON.stringify(products));
 
     setupSearchBar();
 
@@ -694,9 +671,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         searchInput.value = query;
     }
 
-    if (products.length > 0) {
-        applySearch(query);
-    }
+    applySearch(query);
 
     updateCartCount();
 });

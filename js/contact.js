@@ -84,13 +84,6 @@
         return valid;
     }
 
-    function getApiUrl() {
-        if (window.location.protocol === 'file:') {
-            return 'http://localhost:3000/api/contact';
-        }
-        return '/api/contact';
-    }
-
     form.addEventListener('submit', async function (event) {
         event.preventDefault();
         clearStatus();
@@ -105,7 +98,12 @@
         submitButton.textContent = 'Sending...';
 
         try {
-            const response = await fetch(getApiUrl(), {
+            if (window.location.protocol === 'file:') {
+                setStatus('Open the site from http://localhost:3001, not as a file on disk.', 'error');
+                return;
+            }
+
+            const response = await fetch('/api/contact', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

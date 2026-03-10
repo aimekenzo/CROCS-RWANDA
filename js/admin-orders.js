@@ -25,7 +25,7 @@
         ordersList.innerHTML = orders.map((order) => {
             const items = Array.isArray(order.items) ? order.items : [];
             const itemLines = items.map((item) => `<li>${item.quantity} x ${item.name} (${formatMoney(item.price)})</li>`).join('');
-            const paymentLabel = order.payment?.method === 'momo' ? 'MTN MoMo' : 'Card';
+            const paymentLabel = order.payment?.method === 'momo' ? 'MTN MoMo' : 'Cash on Delivery';
 
             return `
                 <article class="order-card">

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" role="img" aria-labelledby="title desc">
+  <title id="title">Crocs Rwanda location map card</title>
+  <desc id="desc">A stylized map card highlighting Crocs Rwanda in Kigali.</desc>
+  <rect width="900" height="520" rx="34" fill="#f8fafc"/>
+  <rect x="42" y="42" width="816" height="436" rx="26" fill="#eaf5ff"/>
+  <path d="M88 120C210 138 264 208 392 214C520 220 590 150 710 164C760 170 804 194 844 224V434H88Z" fill="#dbeafe"/>
+  <path d="M88 182C190 206 276 318 386 314C502 310 584 212 694 228C752 236 798 270 844 328V434H88Z" fill="#dcfce7"/>
+  <path d="M168 114L234 182L178 244L118 190Z" fill="none" stroke="#93c5fd" stroke-width="12"/>
+  <path d="M330 86L396 156L340 224L276 150Z" fill="none" stroke="#86efac" stroke-width="12"/>
+  <path d="M536 116L608 190L548 264L476 186Z" fill="none" stroke="#93c5fd" stroke-width="12"/>
+  <path d="M694 92L770 170L704 248L628 170Z" fill="none" stroke="#86efac" stroke-width="12"/>
+  <path d="M146 336C216 282 316 250 412 248C540 246 636 288 754 380" fill="none" stroke="#0f172a" stroke-width="16" stroke-linecap="round"/>
+  <circle cx="468" cy="272" r="28" fill="#ef4444"/>
+  <path d="M468 206C438 206 414 230 414 260C414 302 468 356 468 356C468 356 522 302 522 260C522 230 498 206 468 206Z" fill="#ef4444"/>
+  <circle cx="468" cy="260" r="18" fill="#ffffff"/>
+  <rect x="80" y="372" width="306" height="68" rx="18" fill="#ffffff" opacity="0.95"/>
+  <text x="112" y="412" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#0f172a">KG 7 Ave, Kigali, Rwanda</text>
+  <text x="80" y="82" font-family="Arial, sans-serif" font-size="32" font-weight="700" fill="#0f172a">CROCS RWANDA</text>
+</svg>

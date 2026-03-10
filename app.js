@@ -10,11 +10,59 @@ const ContactMessage = require('./model/contactMessage');
 const Order = require('./model/order');
 const Product = require('./model/product');
 const StockAlert = require('./model/stockAlert');
+const { isEmailConfigured, sendContactNotifications, sendOrderNotifications } = require('./services/email');
 const app = express();
+app.set('trust proxy', 1);
+const isProduction = process.env.NODE_ENV === 'production';
+const APP_NAMESPACE = 'crocs_rwanda';
 
-const ADMIN_SESSION_COOKIE = 'admin_session';
+const REQUIRED_ENV_VARS = ['ADMIN_USERNAME', 'ADMIN_PASSWORD', 'ADMIN_SESSION_SECRET'];
+const missingEnvVars = REQUIRED_ENV_VARS.filter((name) => !String(process.env[name] || '').trim());
+if (missingEnvVars.length > 0) {
+    console.error(`Missing required env vars: ${missingEnvVars.join(', ')}`);
+    process.exit(1);
+}
+
+const ADMIN_SESSION_COOKIE = `${APP_NAMESPACE}_admin_session`;
 const ADMIN_SESSION_TTL_MS = 1000 * 60 * 60 * 12; // 12 hours
-const adminSessions = new Map();
+const ADMIN_USERNAME = normalizeId(process.env.ADMIN_USERNAME).toLowerCase();
+const ADMIN_PASSWORD = normalizeId(process.env.ADMIN_PASSWORD);
+const ADMIN_SESSION_SECRET = String(process.env.ADMIN_SESSION_SECRET);
+
+function looksLikePlaceholder(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    return (
+        !normalized
+        || normalized.includes('change-this')
+        || normalized.includes('example')
+        || normalized.includes('your-strong-password')
+        || normalized.includes('your-long-random-session-secret')
+    );
+}
+
+function validateProductionSecurityConfig() {
+    if (!isProduction) {
+        return;
+    }
+
+    const issues = [];
+
+    if (ADMIN_PASSWORD.length < 10 || looksLikePlaceholder(ADMIN_PASSWORD)) {
+        issues.push('ADMIN_PASSWORD must be a strong non-placeholder value with at least 10 characters.');
+    }
+
+    if (ADMIN_SESSION_SECRET.length < 32 || looksLikePlaceholder(ADMIN_SESSION_SECRET)) {
+        issues.push('ADMIN_SESSION_SECRET must be a strong non-placeholder value with at least 32 characters.');
+    }
+
+    if (issues.length > 0) {
+        console.error('Refusing to start with weak production admin configuration:');
+        issues.forEach((issue) => console.error(`- ${issue}`));
+        process.exit(1);
+    }
+}
+
+validateProductionSecurityConfig();
 
 function parseCookies(req) {
     const raw = req.headers.cookie || '';
@@ -26,36 +74,135 @@ function parseCookies(req) {
     }, {});
 }
 
-function getAdminToken(req) {
-    const cookies = parseCookies(req);
-    return String(cookies[ADMIN_SESSION_COOKIE] || '').trim();
+function getClientIp(req) {
+    const xff = req.headers['x-forwarded-for'];
+    if (typeof xff === 'string' && xff.trim()) {
+        return xff.split(',')[0].trim();
+    }
+    return req.ip || req.connection?.remoteAddress || 'unknown';
 }
 
-function isValidAdminSession(token) {
-    if (!token) return false;
-    const expiresAt = adminSessions.get(token);
-    if (!expiresAt) return false;
-    if (Date.now() > expiresAt) {
-        adminSessions.delete(token);
+function createRateLimiter(windowMs, maxRequests, minIntervalMs = 0) {
+    const state = new Map();
+    return (key) => {
+        const now = Date.now();
+        const entry = state.get(key) || { count: 0, firstSeen: now, lastSeen: 0 };
+
+        if (now - entry.firstSeen > windowMs) {
+            entry.count = 0;
+            entry.firstSeen = now;
+        }
+        if (now - entry.lastSeen < minIntervalMs) {
+            return { allowed: false, reason: 'cooldown' };
+        }
+        if (entry.count >= maxRequests) {
+            return { allowed: false, reason: 'rate_limit' };
+        }
+
+        entry.count += 1;
+        entry.lastSeen = now;
+        state.set(key, entry);
+        return { allowed: true };
+    };
+}
+
+function withStatusError(message, status = 400) {
+    const error = new Error(message);
+    error.status = status;
+    return error;
+}
+
+function normalizeId(value) {
+    return String(value || '').trim();
+}
+
+function safeEqual(a, b) {
+    const left = Buffer.from(String(a || ''));
+    const right = Buffer.from(String(b || ''));
+    if (left.length !== right.length) {
         return false;
     }
-    return true;
+    return crypto.timingSafeEqual(left, right);
+}
+
+function signAdminSessionPayload(payload) {
+    return crypto
+        .createHmac('sha256', ADMIN_SESSION_SECRET)
+        .update(payload)
+        .digest('base64url');
+}
+
+function createAdminSessionToken() {
+    const payload = Buffer.from(JSON.stringify({
+        username: ADMIN_USERNAME,
+        exp: Date.now() + ADMIN_SESSION_TTL_MS
+    })).toString('base64url');
+
+    return `${payload}.${signAdminSessionPayload(payload)}`;
+}
+
+function readAdminSession(req) {
+    const cookies = parseCookies(req);
+    const token = String(cookies[ADMIN_SESSION_COOKIE] || '').trim();
+    if (!token) {
+        return null;
+    }
+
+    const parts = token.split('.');
+    if (parts.length !== 2) {
+        return null;
+    }
+
+    const [payload, signature] = parts;
+    const expectedSignature = signAdminSessionPayload(payload);
+    if (!safeEqual(signature, expectedSignature)) {
+        return null;
+    }
+
+    try {
+        const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+        const username = normalizeId(decoded.username).toLowerCase();
+        const exp = Number(decoded.exp || 0);
+
+        if (!username || username !== ADMIN_USERNAME || !Number.isFinite(exp) || Date.now() > exp) {
+            return null;
+        }
+
+        return { username, exp };
+    } catch (error) {
+        return null;
+    }
 }
 
 function requireAdminApi(req, res, next) {
-    const token = getAdminToken(req);
-    if (!isValidAdminSession(token)) {
+    const session = readAdminSession(req);
+    if (!session) {
         return res.status(401).json({ message: 'Admin authentication required.' });
     }
     next();
 }
 
 function requireAdminPage(req, res, next) {
-    const token = getAdminToken(req);
-    if (!isValidAdminSession(token)) {
-        return res.redirect('/pages/admin-login.html');
+    const session = readAdminSession(req);
+    if (!session) {
+        return res.redirect('/admin-login');
     }
     next();
+}
+
+function getMongoHealth() {
+    const states = {
+        0: 'disconnected',
+        1: 'connected',
+        2: 'connecting',
+        3: 'disconnecting'
+    };
+    const readyState = Number(mongoose.connection.readyState || 0);
+
+    return {
+        ready: readyState === 1,
+        state: states[readyState] || `unknown(${readyState})`
+    };
 }
 
 // Connect to MongoDB
@@ -66,10 +213,18 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/crocs-rwa
 });
 
 // Middleware
-app.use(helmet()); // Security headers
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'same-origin' }
+})); // Security headers
 app.use(morgan('dev')); // Logging
 app.use(express.json()); // Parse JSON
 app.use(express.urlencoded({ extended: true })); // Parse form payloads
+app.use((err, req, res, next) => {
+    if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+        return res.status(400).json({ message: 'Invalid JSON payload.' });
+    }
+    return next(err);
+});
 app.use(express.static('public')); // Serve static files
 app.use('/css', express.static('css'));
 app.use('/js', express.static('js'));
@@ -80,61 +235,127 @@ app.use('/images', express.static('images'));
 // Set EJS as the view engine
 app.set('view engine', 'ejs');
 
+function sendPage(res, fileName) {
+    return res.sendFile(path.join(__dirname, 'pages', fileName));
+}
+
 // Routes
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+app.get('/index.html', (req, res) => {
+    res.redirect(301, '/');
+});
+
 app.get('/products', (req, res) => {
-    res.sendFile(path.join(__dirname, 'pages', 'products.html'));
+    sendPage(res, 'products.html');
 });
 
 app.get('/about', (req, res) => {
-    res.send('About Crocs Rwanda');
+    sendPage(res, 'about.html');
+});
+
+app.get('/account', (req, res) => {
+    sendPage(res, 'account.html');
+});
+
+app.get('/contact', (req, res) => {
+    sendPage(res, 'contact.html');
+});
+
+app.get('/cart', (req, res) => {
+    sendPage(res, 'cart.html');
+});
+
+app.get('/shipping', (req, res) => {
+    sendPage(res, 'shipping.html');
+});
+
+app.get('/returns', (req, res) => {
+    sendPage(res, 'returns.html');
+});
+
+app.get('/tracking', (req, res) => {
+    sendPage(res, 'tracking.html');
+});
+
+app.get('/admin-login', (req, res) => {
+    sendPage(res, 'admin-login.html');
+});
+
+app.get('/admin', requireAdminPage, (req, res) => {
+    sendPage(res, 'admin.html');
+});
+
+app.get('/admin/orders', requireAdminPage, (req, res) => {
+    sendPage(res, 'admin-orders.html');
+});
+
+app.get('/api/health', (req, res) => {
+    const mongo = getMongoHealth();
+    const status = mongo.ready ? 200 : 503;
+
+    res.status(status).json({
+        status: mongo.ready ? 'ok' : 'degraded',
+        environment: process.env.NODE_ENV || 'development',
+        uptimeSeconds: Math.floor(process.uptime()),
+        emailConfigured: isEmailConfigured(),
+        database: mongo.state
+    });
 });
 
 app.post('/api/admin/login', (req, res) => {
-    const submitted = String(req.body.password || '').trim();
-    const expected = String(process.env.ADMIN_PASSWORD || '').trim();
+    const ip = getClientIp(req);
+    const submittedUsername = normalizeId(req.body?.username).toLowerCase();
+    const submitted = normalizeId(req.body?.password);
 
-    if (!expected) {
-        return res.status(500).json({ message: 'ADMIN_PASSWORD is not configured on server.' });
+    const loginAttemptLimit = adminLoginRateLimit(ip);
+    if (!loginAttemptLimit.allowed) {
+        const msg = loginAttemptLimit.reason === 'cooldown'
+            ? 'Too many attempts. Wait a few seconds and retry.'
+            : 'Too many login attempts. Please try again later.';
+        return res.status(429).json({ message: msg });
     }
 
-    if (!submitted || submitted !== expected) {
-        return res.status(401).json({ message: 'Invalid admin password.' });
+    if (!ADMIN_USERNAME || !ADMIN_PASSWORD || !ADMIN_SESSION_SECRET) {
+        return res.status(500).json({ message: 'Admin credentials are not configured on server.' });
     }
 
-    const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = Date.now() + ADMIN_SESSION_TTL_MS;
-    adminSessions.set(token, expiresAt);
+    if (!safeEqual(submittedUsername, ADMIN_USERNAME) || !safeEqual(submitted, ADMIN_PASSWORD)) {
+        return res.status(401).json({ message: 'Invalid admin credentials.' });
+    }
+
+    const token = createAdminSessionToken();
 
     res.setHeader(
         'Set-Cookie',
-        `${ADMIN_SESSION_COOKIE}=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${Math.floor(ADMIN_SESSION_TTL_MS / 1000)}`
+        `${ADMIN_SESSION_COOKIE}=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax; ${isProduction ? 'Secure; ' : ''}Max-Age=${Math.floor(ADMIN_SESSION_TTL_MS / 1000)}`
     );
 
     res.json({ message: 'Login successful.' });
 });
 
 app.get('/api/admin/session', (req, res) => {
-    const token = getAdminToken(req);
-    res.json({ authenticated: isValidAdminSession(token) });
+    const session = readAdminSession(req);
+    res.json({
+        authenticated: Boolean(session),
+        username: session?.username || null
+    });
 });
 
 app.post('/api/admin/logout', (req, res) => {
-    const token = getAdminToken(req);
-    if (token) {
-        adminSessions.delete(token);
-    }
-    res.setHeader('Set-Cookie', `${ADMIN_SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0`);
+    res.setHeader(
+        'Set-Cookie',
+        `${ADMIN_SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; ${isProduction ? 'Secure; ' : ''}Max-Age=0`
+    );
     res.json({ message: 'Logged out.' });
 });
 
-const contactRateLimit = new Map();
-const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
-const MAX_CONTACT_SUBMISSIONS = 5;
-const MIN_SECONDS_BETWEEN_SUBMISSIONS = 10;
+const contactRateLimit = createRateLimiter(15 * 60 * 1000, 5, 10000);
+const orderRateLimit = createRateLimiter(10 * 60 * 1000, 8, 3000);
+const stockAlertRateLimit = createRateLimiter(10 * 60 * 1000, 20, 2000);
+const adminLoginRateLimit = createRateLimiter(15 * 60 * 1000, 10, 2000);
 
 function validateContactPayload(payload) {
     const errors = [];
@@ -167,34 +388,127 @@ function validateContactPayload(payload) {
     };
 }
 
-function canSubmitContact(ip) {
-    const now = Date.now();
-    const current = contactRateLimit.get(ip) || { count: 0, firstSeen: now, lastSeen: 0 };
-
-    if (now - current.firstSeen > RATE_LIMIT_WINDOW_MS) {
-        current.count = 0;
-        current.firstSeen = now;
-    }
-    if (now - current.lastSeen < MIN_SECONDS_BETWEEN_SUBMISSIONS * 1000) {
-        return { allowed: false, code: 'cooldown' };
-    }
-    if (current.count >= MAX_CONTACT_SUBMISSIONS) {
-        return { allowed: false, code: 'rate_limit' };
+function parseProductListValue(value) {
+    if (Array.isArray(value)) {
+        return value
+            .map((item) => String(item || '').trim())
+            .filter((item) => item);
     }
 
-    current.count += 1;
-    current.lastSeen = now;
-    contactRateLimit.set(ip, current);
-    return { allowed: true };
+    if (typeof value === 'string') {
+        return value
+            .split(',')
+            .map((item) => item.trim())
+            .filter((item) => item);
+    }
+
+    return [];
+}
+
+function normalizeProductReviews(value) {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    return value.map((entry) => {
+        if (!entry || typeof entry !== 'object') {
+            return { user: 'Customer', rating: 0, comment: '' };
+        }
+
+        return {
+            user: String(entry.user || '').trim() || 'Customer',
+            rating: Math.min(Math.max(Number(entry.rating) || 0, 0), 5),
+            comment: String(entry.comment || '').trim()
+        };
+    });
+}
+
+function buildProductPlaceholderImage(name) {
+    return '/images/product-placeholder.svg';
+}
+
+function normalizeProductImage(name, value) {
+    const image = String(value || '').trim();
+    if (!image) {
+        return buildProductPlaceholderImage(name);
+    }
+
+    if (
+        image.startsWith('/images/')
+        || image.startsWith('images/')
+        || image.startsWith('../images/')
+        || image.startsWith('./images/')
+        || image.startsWith('data:image/')
+    ) {
+        return image;
+    }
+
+    try {
+        const parsed = new URL(image);
+        const protocol = parsed.protocol.toLowerCase();
+        const host = parsed.hostname.toLowerCase();
+        const blockedHosts = new Set([
+            'instagram.com',
+            'www.instagram.com',
+            'facebook.com',
+            'www.facebook.com',
+            'x.com',
+            'www.x.com',
+            'twitter.com',
+            'www.twitter.com'
+        ]);
+
+        if (!['http:', 'https:'].includes(protocol) || blockedHosts.has(host)) {
+            return buildProductPlaceholderImage(name);
+        }
+
+        return image;
+    } catch (error) {
+        return buildProductPlaceholderImage(name);
+    }
+}
+
+function validateProductPayload(payload) {
+    const errors = [];
+    const cleaned = {};
+
+    cleaned.name = normalizeId(payload?.name);
+    cleaned.price = Number(payload?.price || 0);
+    cleaned.description = String(payload?.description || '').trim();
+    cleaned.image = normalizeProductImage(cleaned.name, payload?.image);
+    cleaned.stock = Number(payload?.stock || 0);
+    cleaned.category = String(payload?.category || 'General').trim() || 'General';
+    cleaned.colors = parseProductListValue(payload?.colors);
+    cleaned.sizes = parseProductListValue(payload?.sizes);
+    cleaned.rating = Number(payload?.rating || 0);
+    cleaned.reviews = normalizeProductReviews(payload?.reviews);
+
+    if (!cleaned.name) {
+        errors.push('Product name is required.');
+    }
+    if (Number.isNaN(cleaned.price) || cleaned.price < 0) {
+        errors.push('Product price must be a number greater than or equal to 0.');
+    }
+    if (Number.isNaN(cleaned.stock) || cleaned.stock < 0) {
+        errors.push('Product stock must be 0 or higher.');
+    }
+    if (!Number.isInteger(cleaned.stock)) {
+        errors.push('Product stock must be an integer.');
+    }
+    if (Number.isNaN(cleaned.rating) || cleaned.rating < 0 || cleaned.rating > 5) {
+        errors.push('Product rating must be between 0 and 5.');
+    }
+
+    return { errors, cleaned };
 }
 
 app.post('/api/contact', async (req, res, next) => {
     try {
-        const sourceIp = req.ip || req.headers['x-forwarded-for'] || 'unknown';
-        const limit = canSubmitContact(sourceIp);
+        const sourceIp = getClientIp(req);
+        const limit = contactRateLimit(sourceIp);
 
         if (!limit.allowed) {
-            if (limit.code === 'cooldown') {
+            if (limit.reason === 'cooldown') {
                 return res.status(429).json({ message: 'Please wait a few seconds before sending another message.' });
             }
             return res.status(429).json({ message: 'Too many messages sent. Please try again later.' });
@@ -205,10 +519,14 @@ app.post('/api/contact', async (req, res, next) => {
             return res.status(400).json({ message: errors[0] });
         }
 
-        await ContactMessage.create({
+        const savedMessage = await ContactMessage.create({
             ...cleaned,
             ipAddress: sourceIp,
             userAgent: req.get('user-agent') || ''
+        });
+
+        sendContactNotifications(savedMessage).catch((error) => {
+            console.error('Contact email notification failed:', error);
         });
 
         res.status(201).json({ message: 'Message received.' });
@@ -262,19 +580,12 @@ app.get('/api/products', async (req, res, next) => {
 
 app.post('/api/products', requireAdminApi, async (req, res, next) => {
     try {
-        const payload = req.body || {};
-        const product = await Product.create({
-            name: String(payload.name || '').trim(),
-            price: Number(payload.price || 0),
-            description: String(payload.description || '').trim(),
-            image: String(payload.image || '').trim(),
-            stock: Number(payload.stock || 0),
-            category: String(payload.category || 'General').trim(),
-            colors: Array.isArray(payload.colors) ? payload.colors : String(payload.colors || '').split(',').map((x) => x.trim()).filter(Boolean),
-            sizes: Array.isArray(payload.sizes) ? payload.sizes : String(payload.sizes || '').split(',').map((x) => x.trim()).filter(Boolean),
-            rating: Number(payload.rating || 0),
-            reviews: Array.isArray(payload.reviews) ? payload.reviews : []
-        });
+        const { errors, cleaned } = validateProductPayload(req.body || {});
+        if (errors.length > 0) {
+            return res.status(400).json({ message: errors[0] });
+        }
+
+        const product = await Product.create(cleaned);
 
         res.status(201).json({ message: 'Product created.', product });
     } catch (error) {
@@ -284,20 +595,19 @@ app.post('/api/products', requireAdminApi, async (req, res, next) => {
 
 app.put('/api/products/:id', requireAdminApi, async (req, res, next) => {
     try {
-        const payload = req.body || {};
-        const update = {
-            name: String(payload.name || '').trim(),
-            price: Number(payload.price || 0),
-            description: String(payload.description || '').trim(),
-            image: String(payload.image || '').trim(),
-            stock: Number(payload.stock || 0),
-            category: String(payload.category || 'General').trim(),
-            colors: Array.isArray(payload.colors) ? payload.colors : String(payload.colors || '').split(',').map((x) => x.trim()).filter(Boolean),
-            sizes: Array.isArray(payload.sizes) ? payload.sizes : String(payload.sizes || '').split(',').map((x) => x.trim()).filter(Boolean),
-            rating: Number(payload.rating || 0)
-        };
+        const productId = normalizeId(req.params.id);
+        if (!mongoose.Types.ObjectId.isValid(productId)) {
+            return res.status(400).json({ message: 'Invalid product id.' });
+        }
 
-        const product = await Product.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true });
+        const { errors, cleaned } = validateProductPayload(req.body || {});
+        if (errors.length > 0) {
+            return res.status(400).json({ message: errors[0] });
+        }
+
+        const update = cleaned;
+
+        const product = await Product.findByIdAndUpdate(productId, update, { new: true, runValidators: true });
         if (!product) {
             return res.status(404).json({ message: 'Product not found.' });
         }
@@ -336,7 +646,7 @@ function validateOrderPayload(payload) {
     if (fullName.length < 2) errors.push('Customer name is required.');
     if (!emailRegex.test(email)) errors.push('Valid customer email is required.');
     if (phone.length < 7) errors.push('Valid customer phone is required.');
-    if (!['card', 'momo'].includes(method)) errors.push('Payment method must be card or momo.');
+    if (!['momo', 'cod'].includes(method)) errors.push('Payment method must be MTN MoMo or cash on delivery.');
     if (!items.length) errors.push('Order must include at least one item.');
 
     const normalizedItems = items.map((item) => ({
@@ -369,19 +679,9 @@ function validateOrderPayload(payload) {
 
     const normalizedPayment = {
         method,
-        cardLast4: '',
         momoNumber: '',
         momoName: ''
     };
-
-    if (method === 'card') {
-        const cardNumber = String(payment.cardNumber || '').replace(/\s+/g, '');
-        if (cardNumber.length < 12) {
-            errors.push('Card number is invalid.');
-        } else {
-            normalizedPayment.cardLast4 = cardNumber.slice(-4);
-        }
-    }
 
     if (method === 'momo') {
         const momoNumber = String(payment.momoNumber || '').trim();
@@ -407,19 +707,135 @@ function validateOrderPayload(payload) {
 
 app.post('/api/orders', async (req, res, next) => {
     try {
+        const sourceIp = getClientIp(req);
+        const limit = orderRateLimit(sourceIp);
+        if (!limit.allowed) {
+            return res.status(429).json({ message: 'Too many orders submitted. Please wait a bit and try again.' });
+        }
+
         const { errors, cleaned } = validateOrderPayload(req.body || {});
         if (errors.length > 0) {
             return res.status(400).json({ message: errors[0] });
         }
 
-        const saved = await Order.create({
-            ...cleaned,
-            status: 'pending'
-        });
+        const session = await mongoose.startSession();
+        let saved;
+        const normalizedItems = cleaned.items.map((item) => ({
+            ...item,
+            productId: normalizeId(item.productId)
+        }));
+
+        let useTransactionFlow = true;
+        try {
+            await session.withTransaction(async () => {
+                const ids = [...new Set(normalizedItems.map((item) => item.productId).filter(Boolean))];
+
+                if (ids.some((id) => !mongoose.Types.ObjectId.isValid(id))) {
+                    throw withStatusError('Order contains invalid product identifiers.', 400);
+                }
+
+                const dbProducts = await Product.find({ _id: { $in: ids.map((id) => new mongoose.Types.ObjectId(id)) } })
+                    .session(session)
+                    .lean();
+
+                const productMap = new Map(dbProducts.map((p) => [normalizeId(p._id), p]));
+
+                for (const item of normalizedItems) {
+                    const product = productMap.get(item.productId);
+                    if (!product) {
+                        throw withStatusError('One or more products are no longer available.', 404);
+                    }
+                    if (Number(product.stock || 0) < Number(item.quantity || 0)) {
+                        throw withStatusError(`Insufficient stock for ${product.name}.`, 409);
+                    }
+                    const decrementResult = await Product.updateOne(
+                        {
+                            _id: new mongoose.Types.ObjectId(item.productId),
+                            stock: { $gte: Number(item.quantity || 0) }
+                        },
+                        { $inc: { stock: -Number(item.quantity || 0) } },
+                        { session }
+                    );
+                    if (decrementResult.modifiedCount !== 1) {
+                        throw withStatusError('Stock changed before checkout. Please refresh and try again.', 409);
+                    }
+                }
+
+                const created = await Order.create([{
+                    ...cleaned,
+                    status: 'pending'
+                }], { session });
+                saved = Array.isArray(created) ? created[0] : created;
+            });
+        } catch (txError) {
+            useTransactionFlow = false;
+
+            // Fallback for non-transactional MongoDB setups (common in single-node local dev)
+            // Best effort rollback via compensation to avoid negative/inconsistent stock.
+            if (txError?.errorLabels?.includes('TransientTransactionError') || txError?.errorLabels?.includes('UnknownTransactionCommitResult') || /Transaction.*not.*supported|not support.*transactions/i.test(String(txError?.message || ''))) {
+                const decremented = [];
+                for (const item of normalizedItems) {
+                    const stockQty = Number(item.quantity || 0);
+                    if (!item.productId || stockQty <= 0) continue;
+
+                    const result = await Product.updateOne(
+                        { _id: new mongoose.Types.ObjectId(item.productId), stock: { $gte: stockQty } },
+                        { $inc: { stock: -stockQty } }
+                    );
+                    if (result.modifiedCount !== 1) {
+                        for (const applied of decremented) {
+                            await Product.updateOne(
+                                { _id: new mongoose.Types.ObjectId(applied.productId) },
+                                { $inc: { stock: applied.quantity } }
+                            );
+                        }
+                        return next(withStatusError('Stock changed before checkout. Please refresh and try again.', 409));
+                    }
+                    decremented.push({ productId: item.productId, quantity: stockQty });
+                }
+
+                try {
+                    const created = await Order.create({
+                        ...cleaned,
+                        status: 'pending'
+                    });
+                    saved = created;
+                } catch (createError) {
+                    for (const applied of decremented) {
+                        await Product.updateOne(
+                            { _id: new mongoose.Types.ObjectId(applied.productId) },
+                            { $inc: { stock: applied.quantity } }
+                        );
+                    }
+                    return next(createError);
+                }
+            } else {
+                return next(txError);
+            }
+        } finally {
+            try {
+                await session.endSession();
+            } catch (error) {
+                // ignore session cleanup errors
+            }
+        }
+
+        if (!saved || !saved._id) {
+            if (useTransactionFlow) {
+                throw withStatusError('Order could not be saved.', 500);
+            }
+            throw withStatusError('Order could not be saved.', 500);
+        }
 
         res.status(201).json({
-            message: 'Order created successfully.',
+            message: cleaned.payment.method === 'momo'
+                ? 'Order created. We will confirm your MTN MoMo payment before shipping.'
+                : 'Order created. Cash on delivery has been recorded.',
             orderId: saved._id
+        });
+
+        sendOrderNotifications(saved).catch((error) => {
+            console.error('Order email notification failed:', error);
         });
     } catch (error) {
         next(error);
@@ -439,10 +855,39 @@ app.get('/api/orders', requireAdminApi, async (req, res, next) => {
     }
 });
 
+app.get('/api/orders/:id/track', async (req, res, next) => {
+    try {
+        const orderId = normalizeId(req.params.id);
+        if (!mongoose.Types.ObjectId.isValid(orderId)) {
+            return res.status(400).json({ message: 'Invalid order id.' });
+        }
+
+        const order = await Order.findById(orderId)
+            .select('_id createdAt status items summary')
+            .lean();
+
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found.' });
+        }
+
+        res.json({
+            order: {
+                _id: order._id,
+                createdAt: order.createdAt,
+                status: order.status,
+                items: order.items,
+                summary: order.summary
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
 app.patch('/api/orders/:id/status', requireAdminApi, async (req, res, next) => {
     try {
         const status = String(req.body.status || '').trim();
-        if (!['pending', 'paid', 'failed'].includes(status)) {
+        if (!['pending', 'paid', 'processing', 'shipped', 'delivered', 'failed'].includes(status)) {
             return res.status(400).json({ message: 'Invalid order status.' });
         }
 
@@ -459,6 +904,12 @@ app.patch('/api/orders/:id/status', requireAdminApi, async (req, res, next) => {
 
 app.post('/api/stock-alerts', async (req, res, next) => {
     try {
+        const sourceIp = getClientIp(req);
+        const limit = stockAlertRateLimit(sourceIp);
+        if (!limit.allowed) {
+            return res.status(429).json({ message: 'Too many stock alert requests. Please try again later.' });
+        }
+
         const productId = String(req.body.productId || '').trim();
         const productName = String(req.body.productName || '').trim();
         const email = String(req.body.email || '').trim().toLowerCase();
@@ -524,17 +975,23 @@ app.get('/api/admin/overview', requireAdminApi, async (req, res, next) => {
 
 // 404 Middleware
 app.use((req, res) => {
+    if (req.accepts('json')) {
+        return res.status(404).json({ message: 'Route not found.' });
+    }
     res.status(404).send('Page not found');
 });
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).send('Something went wrong!');
+    const status = Number(err.status) || 500;
+    console.error(err.stack || err);
+    res.status(status).json({
+        message: status === 500 ? 'Something went wrong!' : err.message
+    });
 });
 
 // Start the server
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3001;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });

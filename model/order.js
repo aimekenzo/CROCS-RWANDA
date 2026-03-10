@@ -19,8 +19,7 @@ const orderSchema = new mongoose.Schema(
             phone: { type: String, required: true, trim: true }
         },
         payment: {
-            method: { type: String, enum: ['card', 'momo'], required: true },
-            cardLast4: { type: String, default: '' },
+            method: { type: String, enum: ['momo', 'cod'], required: true },
             momoNumber: { type: String, default: '' },
             momoName: { type: String, default: '' }
         },
@@ -32,11 +31,15 @@ const orderSchema = new mongoose.Schema(
         },
         status: {
             type: String,
-            enum: ['pending', 'paid', 'failed'],
+            enum: ['pending', 'paid', 'processing', 'shipped', 'delivered', 'failed'],
             default: 'pending'
         }
     },
     { timestamps: true }
 );
+
+orderSchema.index({ status: 1, createdAt: -1 });
+orderSchema.index({ 'customer.email': 1 });
+orderSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('Order', orderSchema);
