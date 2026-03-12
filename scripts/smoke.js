@@ -7,7 +7,6 @@ const checks = [
     { path: '/', expected: [200] },
     { path: '/products', expected: [200] },
     { path: '/about', expected: [200] },
-    { path: '/contact', expected: [200] },
     { path: '/shipping', expected: [200] },
     { path: '/returns', expected: [200] },
     { path: '/tracking', expected: [200] },

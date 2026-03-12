@@ -41,7 +41,7 @@
                 <input type="hidden" id="product-id">
                 <input type="text" id="product-name" placeholder="Name" required>
                 <input type="number" id="product-price" placeholder="Price" min="0" step="0.01" required>
-                <input type="number" id="product-stock" placeholder="Stock" min="0" required>
+                <input type="number" id="product-stock" placeholder="Stock" min="0" step="1" required>
                 <input type="text" id="product-category" placeholder="Category">
                 <input type="text" id="product-image" placeholder="Image URL">
                 <p class="admin-form-help">Use a direct image URL or leave it blank. Social/profile page links like Instagram pages will be replaced with a placeholder.</p>
@@ -54,6 +54,46 @@
                 </div>
                 <p id="product-feedback" class="admin-feedback"></p>
             </form>
+
+            <section class="admin-bulk-section" aria-labelledby="bulk-products-title">
+                <h3 id="bulk-products-title">Bulk Publish Products (JSON)</h3>
+                <p class="admin-form-help">
+                    Paste a JSON array of products and click publish. Existing products with the same name are updated.
+                </p>
+                <textarea
+                    id="product-bulk-json"
+                    class="admin-bulk-textarea"
+                    placeholder='[{"name":"Crocs Classic Clog","price":49.99,"stock":15,"category":"Clogs","image":"","colors":"white,black","sizes":"40,41,42","description":"Everyday comfort."}]'
+                ></textarea>
+                <div class="admin-form-actions">
+                    <button type="button" id="product-bulk-publish" class="checkout-btn">Publish JSON</button>
+                    <button type="button" id="product-bulk-clear" class="remove-btn">Clear JSON</button>
+                </div>
+                <p id="product-bulk-feedback" class="admin-feedback"></p>
+            </section>
+
+            <section class="admin-bulk-section" aria-labelledby="bulk-products-rows-title">
+                <h3 id="bulk-products-rows-title">Quick Bulk Upload (No Code)</h3>
+                <p class="admin-form-help">
+                    Paste rows from Excel/Google Sheets. Use columns in this order:
+                    <code>name,price,stock,category,image,colors,sizes,description</code>
+                </p>
+                <textarea
+                    id="product-bulk-rows"
+                    class="admin-bulk-textarea"
+                    placeholder="name,price,stock,category,image,colors,sizes,description&#10;Crocs Classic Clog,49.99,15,Clogs,,white|black,40|41|42,Everyday comfort."
+                ></textarea>
+                <div class="admin-file-row">
+                    <input type="file" id="product-bulk-file" accept=".csv,text/csv">
+                    <button type="button" id="product-bulk-file-publish" class="checkout-btn">Upload CSV File</button>
+                </div>
+                <div class="admin-form-actions">
+                    <button type="button" id="product-bulk-rows-template" class="checkout-btn">Insert Template</button>
+                    <button type="button" id="product-bulk-rows-publish" class="checkout-btn">Publish Rows</button>
+                    <button type="button" id="product-bulk-rows-clear" class="remove-btn">Clear Rows</button>
+                </div>
+                <p id="product-bulk-rows-feedback" class="admin-feedback"></p>
+            </section>
             <div id="products-list" class="admin-list"></div>
         </section>
 

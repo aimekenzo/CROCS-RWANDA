@@ -260,10 +260,6 @@ app.get('/account', (req, res) => {
     sendPage(res, 'account.html');
 });
 
-app.get('/contact', (req, res) => {
-    sendPage(res, 'contact.html');
-});
-
 app.get('/cart', (req, res) => {
     sendPage(res, 'cart.html');
 });

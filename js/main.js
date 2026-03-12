@@ -3,9 +3,14 @@ let allProducts = [];
 const MAX_SUGGESTIONS = 6;
 const PRODUCT_PLACEHOLDER_IMAGE = '/images/product-placeholder.svg';
 const CART_STORAGE_KEY = 'crocs_rwanda_cart_items';
+const SUPPORT_WHATSAPP_NUMBER = '250788623298';
 
 function getProductId(product) {
     return String(product?._id || product?.id || '').trim();
+}
+
+function getProductById(productId) {
+    return products.find((product) => idsEqual(getProductId(product), productId));
 }
 
 function idsEqual(a, b) {
@@ -76,16 +81,16 @@ function getValidatedSize(product, selectedSize) {
 
 function addToCart(productId, selectedSize = '', selectedColor = '') {
     const cartItems = getCartItems();
-    const product = products.find((p) => idsEqual(getProductId(p), productId));
+    const product = getProductById(productId);
 
     if (!product) {
         alert('Product not found.');
-        return;
+        return null;
     }
 
     if ((Number(product.stock) || 0) <= 0) {
         showSoldOutAssistant(product);
-        return;
+        return null;
     }
 
     const safeSize = String(selectedSize || '').trim();
@@ -114,6 +119,61 @@ function addToCart(productId, selectedSize = '', selectedColor = '') {
 
     saveCartItems(cartItems);
     updateCartCount();
+    return lineId;
+}
+
+function validateRequiredVariantSelection(product, selectedSize, selectedColor) {
+    const requiresSize = Array.isArray(product?.sizes) && product.sizes.length > 0;
+    const requiresColor = Array.isArray(product?.colors) && product.colors.length > 0;
+
+    const safeSize = String(selectedSize || '').trim();
+    const safeColor = String(selectedColor || '').trim();
+
+    if (requiresSize && !safeSize) {
+        return 'Please select a size first.';
+    }
+
+    if (requiresColor && !safeColor) {
+        return 'Please select a color first.';
+    }
+
+    return '';
+}
+
+function buyNow(productId, selectedSize = '', selectedColor = '') {
+    const product = getProductById(productId);
+    if (!product) {
+        alert('Product not found.');
+        return;
+    }
+
+    const validationMessage = validateRequiredVariantSelection(product, selectedSize, selectedColor);
+    if (validationMessage) {
+        alert(validationMessage);
+        return;
+    }
+
+    const safeSize = String(selectedSize || '').trim();
+    const safeColor = String(selectedColor || '').trim();
+    const productLink = `${window.location.origin}/products`;
+    const messageLines = [
+        'Hello Crocs Rwanda, I want to buy this product now:',
+        `Product: ${product.name}`,
+        `Price: $${(Number(product.price) || 0).toFixed(2)}`
+    ];
+
+    if (safeSize) {
+        messageLines.push(`Size: ${safeSize}`);
+    }
+
+    if (safeColor) {
+        messageLines.push(`Color: ${safeColor}`);
+    }
+
+    messageLines.push(`Product link: ${productLink}`);
+
+    const whatsappUrl = `https://wa.me/${SUPPORT_WHATSAPP_NUMBER}?text=${encodeURIComponent(messageLines.join('\n'))}`;
+    window.location.href = whatsappUrl;
 }
 
 function getAlternativeProducts(soldOutProduct, query) {
@@ -400,7 +460,10 @@ function displayProducts(items) {
                             </div>
                         ` : ''}
                         <p class="product-price">$${(Number(product.price) || 0).toFixed(2)}</p>
-                        <button onclick='addToCartFromCard(this, "${productId}")' class="add-to-cart-btn" aria-label="Add ${product.name} to cart">Add to Cart</button>
+                        <div class="product-actions">
+                            <button onclick='buyNowFromCard(this, "${productId}")' class="checkout-btn product-buy-now-btn" aria-label="Buy ${product.name} now">Buy Now</button>
+                            <button onclick='addToCartFromCard(this, "${productId}")' class="add-to-cart-btn" aria-label="Add ${product.name} to cart">Add to Cart</button>
+                        </div>
                         <button onclick='openQuickView("${productId}")' class="quick-view-btn" aria-label="View full details for ${product.name}">View</button>
                     </div>
                 </div>
@@ -427,6 +490,13 @@ function addToCartFromCard(button, productId) {
     const size = card?.querySelector('.product-size-select')?.value || '';
     const color = card?.querySelector('.selected-color-input')?.value || '';
     addToCart(productId, size, color);
+}
+
+function buyNowFromCard(button, productId) {
+    const card = button?.closest('.product-card');
+    const size = card?.querySelector('.product-size-select')?.value || '';
+    const color = card?.querySelector('.selected-color-input')?.value || '';
+    buyNow(productId, size, color);
 }
 
 function getProductsPagePath() {
@@ -596,7 +666,10 @@ function openQuickView(productId) {
                             </select>
                         </div>
                     ` : ''}
-                    <button type="button" class="add-to-cart-btn" ${stock <= 0 ? 'disabled' : ''} onclick='addToCartFromModal(this, "${getProductId(product)}")'>${stock <= 0 ? 'Sold Out' : 'Add to Cart'}</button>
+                    <div class="product-actions">
+                        <button type="button" class="checkout-btn product-buy-now-btn" ${stock <= 0 ? 'disabled' : ''} onclick='buyNowFromModal(this, "${getProductId(product)}")'>${stock <= 0 ? 'Sold Out' : 'Buy Now'}</button>
+                        <button type="button" class="add-to-cart-btn" ${stock <= 0 ? 'disabled' : ''} onclick='addToCartFromModal(this, "${getProductId(product)}")'>${stock <= 0 ? 'Sold Out' : 'Add to Cart'}</button>
+                    </div>
                 </div>
             </div>
             <div class="product-modal-reviews">
@@ -627,6 +700,13 @@ function addToCartFromModal(button, productId) {
     const size = modalBody?.querySelector('.modal-size-select')?.value || '';
     const color = modalBody?.querySelector('.modal-selected-color-input')?.value || '';
     addToCart(productId, size, color);
+}
+
+function buyNowFromModal(button, productId) {
+    const modalBody = button?.closest('.product-modal-body');
+    const size = modalBody?.querySelector('.modal-size-select')?.value || '';
+    const color = modalBody?.querySelector('.modal-selected-color-input')?.value || '';
+    buyNow(productId, size, color);
 }
 
 window.onclick = function (event) {
