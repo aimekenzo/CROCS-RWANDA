@@ -4,6 +4,7 @@ const MAX_SUGGESTIONS = 6;
 const PRODUCT_PLACEHOLDER_IMAGE = '/images/product-placeholder.svg';
 const CART_STORAGE_KEY = 'crocs_rwanda_cart_items';
 const SUPPORT_WHATSAPP_NUMBER = '250788623298';
+const BUY_NOW_MODAL_ID = 'buyNowModal';
 
 function getProductId(product) {
     return String(product?._id || product?.id || '').trim();
@@ -140,6 +141,267 @@ function validateRequiredVariantSelection(product, selectedSize, selectedColor) 
     return '';
 }
 
+function isLikelyPhoneNumber(value) {
+    const digits = String(value || '').replace(/\D/g, '');
+    return digits.length >= 9;
+}
+
+function ensureBuyNowModal() {
+    let modal = document.getElementById(BUY_NOW_MODAL_ID);
+    if (modal) {
+        return modal;
+    }
+
+    modal = document.createElement('div');
+    modal.id = BUY_NOW_MODAL_ID;
+    modal.className = 'buy-now-modal-shell';
+    modal.innerHTML = `
+        <div class="buy-now-modal-card" role="dialog" aria-modal="true" aria-labelledby="buy-now-title">
+            <button type="button" class="buy-now-close" aria-label="Close buy now form">&times;</button>
+            <div class="buy-now-header">
+                <div class="buy-now-product">
+                    <img class="buy-now-product-image" alt="">
+                    <div class="buy-now-product-copy">
+                        <p class="buy-now-kicker">Direct WhatsApp order</p>
+                        <h2 id="buy-now-title"></h2>
+                        <p class="buy-now-price"></p>
+                    </div>
+                </div>
+                <p class="buy-now-note">Share delivery details once and we will receive the request on WhatsApp immediately.</p>
+            </div>
+            <form class="buy-now-form" novalidate>
+                <div class="buy-now-grid">
+                    <div class="buy-now-field buy-now-size-field">
+                        <label for="buy-now-size">Size</label>
+                        <select id="buy-now-size" name="size"></select>
+                    </div>
+                    <div class="buy-now-field buy-now-color-field">
+                        <label for="buy-now-color">Color</label>
+                        <select id="buy-now-color" name="color"></select>
+                    </div>
+                    <div class="buy-now-field buy-now-field-wide">
+                        <label for="buy-now-address">Delivery address</label>
+                        <textarea id="buy-now-address" name="address" rows="4" placeholder="Sector, street, house, landmark, or any directions the rider should follow." required></textarea>
+                    </div>
+                    <div class="buy-now-field">
+                        <label for="buy-now-primary-phone">Primary phone number</label>
+                        <input id="buy-now-primary-phone" name="primaryPhone" type="tel" inputmode="tel" placeholder="Example: 0788123456" required>
+                    </div>
+                    <div class="buy-now-field">
+                        <label for="buy-now-secondary-phone">Backup phone number</label>
+                        <input id="buy-now-secondary-phone" name="secondaryPhone" type="tel" inputmode="tel" placeholder="Second number if the first is unreachable" required>
+                    </div>
+                </div>
+                <p class="buy-now-feedback" role="alert" aria-live="polite"></p>
+                <div class="buy-now-actions">
+                    <button type="button" class="buy-now-cancel">Cancel</button>
+                    <button type="submit" class="buy-now-submit">Send to WhatsApp</button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const closeButton = modal.querySelector('.buy-now-close');
+    const cancelButton = modal.querySelector('.buy-now-cancel');
+    const form = modal.querySelector('.buy-now-form');
+
+    if (closeButton) {
+        closeButton.addEventListener('click', closeBuyNowModal);
+    }
+
+    if (cancelButton) {
+        cancelButton.addEventListener('click', closeBuyNowModal);
+    }
+
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            closeBuyNowModal();
+        }
+    });
+
+    if (form) {
+        form.addEventListener('submit', handleBuyNowSubmit);
+    }
+
+    return modal;
+}
+
+function closeBuyNowModal() {
+    const modal = document.getElementById(BUY_NOW_MODAL_ID);
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.remove('open');
+    document.body.classList.remove('modal-open');
+}
+
+function setBuyNowFieldVisibility(modal, selector, isVisible) {
+    const field = modal.querySelector(selector);
+    if (!field) {
+        return;
+    }
+
+    field.hidden = !isVisible;
+}
+
+function setBuyNowFeedback(modal, message = '', tone = '') {
+    const feedback = modal.querySelector('.buy-now-feedback');
+    if (!feedback) {
+        return;
+    }
+
+    feedback.textContent = message;
+    feedback.className = 'buy-now-feedback';
+    if (tone) {
+        feedback.classList.add(tone);
+    }
+}
+
+function openBuyNowForm(product, selectedSize = '', selectedColor = '') {
+    const modal = ensureBuyNowModal();
+    const title = modal.querySelector('#buy-now-title');
+    const price = modal.querySelector('.buy-now-price');
+    const image = modal.querySelector('.buy-now-product-image');
+    const sizeSelect = modal.querySelector('#buy-now-size');
+    const colorSelect = modal.querySelector('#buy-now-color');
+    const addressInput = modal.querySelector('#buy-now-address');
+    const primaryPhoneInput = modal.querySelector('#buy-now-primary-phone');
+    const secondaryPhoneInput = modal.querySelector('#buy-now-secondary-phone');
+    const form = modal.querySelector('.buy-now-form');
+    const productId = getProductId(product);
+    const sizes = Array.isArray(product?.sizes) ? product.sizes : [];
+    const colors = Array.isArray(product?.colors) ? product.colors : [];
+
+    if (!title || !price || !image || !sizeSelect || !colorSelect || !addressInput || !primaryPhoneInput || !secondaryPhoneInput || !form) {
+        return;
+    }
+
+    title.textContent = product.name;
+    price.textContent = `$${(Number(product.price) || 0).toFixed(2)} • ${Math.max(Number(product.stock) || 0, 0)} in stock`;
+    image.src = product.image || PRODUCT_PLACEHOLDER_IMAGE;
+    image.alt = product.name;
+
+    form.dataset.productId = productId;
+
+    setBuyNowFieldVisibility(modal, '.buy-now-size-field', sizes.length > 0);
+    sizeSelect.required = sizes.length > 0;
+    sizeSelect.innerHTML = sizes.length
+        ? [
+            '<option value="">Select size</option>',
+            ...sizes.map((size) => `<option value="${size}">${size}</option>`)
+        ].join('')
+        : '<option value="">No size needed</option>';
+    sizeSelect.value = sizes.includes(String(selectedSize || '').trim()) ? String(selectedSize || '').trim() : '';
+
+    setBuyNowFieldVisibility(modal, '.buy-now-color-field', colors.length > 0);
+    colorSelect.required = colors.length > 0;
+    colorSelect.innerHTML = colors.length
+        ? [
+            '<option value="">Select color</option>',
+            ...colors.map((color) => `<option value="${color}">${color}</option>`)
+        ].join('')
+        : '<option value="">No color needed</option>';
+    colorSelect.value = colors.includes(String(selectedColor || '').trim()) ? String(selectedColor || '').trim() : '';
+
+    addressInput.value = '';
+    primaryPhoneInput.value = '';
+    secondaryPhoneInput.value = '';
+    setBuyNowFeedback(modal);
+
+    modal.classList.add('open');
+    document.body.classList.add('modal-open');
+
+    if (sizes.length > 0 && !sizeSelect.value) {
+        sizeSelect.focus();
+        return;
+    }
+
+    if (colors.length > 0 && !colorSelect.value) {
+        colorSelect.focus();
+        return;
+    }
+
+    addressInput.focus();
+}
+
+function handleBuyNowSubmit(event) {
+    event.preventDefault();
+
+    const form = event.currentTarget;
+    const modal = form?.closest('.buy-now-modal-shell');
+    const productId = form?.dataset.productId || '';
+    const product = getProductById(productId);
+
+    if (!modal || !product) {
+        return;
+    }
+
+    const size = form.elements.size?.value || '';
+    const color = form.elements.color?.value || '';
+    const address = String(form.elements.address?.value || '').trim();
+    const primaryPhone = String(form.elements.primaryPhone?.value || '').trim();
+    const secondaryPhone = String(form.elements.secondaryPhone?.value || '').trim();
+
+    if ((Number(product.stock) || 0) <= 0) {
+        closeBuyNowModal();
+        showSoldOutAssistant(product);
+        return;
+    }
+
+    const variantError = validateRequiredVariantSelection(product, size, color);
+    if (variantError) {
+        setBuyNowFeedback(modal, variantError, 'error');
+        return;
+    }
+
+    if (address.length < 10) {
+        setBuyNowFeedback(modal, 'Please enter a more complete delivery address.', 'error');
+        return;
+    }
+
+    if (!isLikelyPhoneNumber(primaryPhone)) {
+        setBuyNowFeedback(modal, 'Enter a valid primary phone number.', 'error');
+        return;
+    }
+
+    if (!isLikelyPhoneNumber(secondaryPhone)) {
+        setBuyNowFeedback(modal, 'Enter a valid backup phone number.', 'error');
+        return;
+    }
+
+    if (primaryPhone.replace(/\D/g, '') === secondaryPhone.replace(/\D/g, '')) {
+        setBuyNowFeedback(modal, 'Use a different backup phone number from the primary one.', 'error');
+        return;
+    }
+
+    const productLink = `${window.location.origin}/products`;
+    const messageLines = [
+        'Hello Crocs Rwanda, I want to place this order now:',
+        `Product: ${product.name}`,
+        `Price: $${(Number(product.price) || 0).toFixed(2)}`,
+        `Delivery address: ${address}`,
+        `Primary phone: ${primaryPhone}`,
+        `Backup phone: ${secondaryPhone}`
+    ];
+
+    if (size) {
+        messageLines.push(`Size: ${size}`);
+    }
+
+    if (color) {
+        messageLines.push(`Color: ${color}`);
+    }
+
+    messageLines.push(`Product page: ${productLink}`);
+
+    const whatsappUrl = `https://wa.me/${SUPPORT_WHATSAPP_NUMBER}?text=${encodeURIComponent(messageLines.join('\n'))}`;
+    closeBuyNowModal();
+    window.open(whatsappUrl, '_blank', 'noopener');
+}
+
 function buyNow(productId, selectedSize = '', selectedColor = '') {
     const product = getProductById(productId);
     if (!product) {
@@ -147,33 +409,12 @@ function buyNow(productId, selectedSize = '', selectedColor = '') {
         return;
     }
 
-    const validationMessage = validateRequiredVariantSelection(product, selectedSize, selectedColor);
-    if (validationMessage) {
-        alert(validationMessage);
+    if ((Number(product.stock) || 0) <= 0) {
+        showSoldOutAssistant(product);
         return;
     }
 
-    const safeSize = String(selectedSize || '').trim();
-    const safeColor = String(selectedColor || '').trim();
-    const productLink = `${window.location.origin}/products`;
-    const messageLines = [
-        'Hello Crocs Rwanda, I want to buy this product now:',
-        `Product: ${product.name}`,
-        `Price: $${(Number(product.price) || 0).toFixed(2)}`
-    ];
-
-    if (safeSize) {
-        messageLines.push(`Size: ${safeSize}`);
-    }
-
-    if (safeColor) {
-        messageLines.push(`Color: ${safeColor}`);
-    }
-
-    messageLines.push(`Product link: ${productLink}`);
-
-    const whatsappUrl = `https://wa.me/${SUPPORT_WHATSAPP_NUMBER}?text=${encodeURIComponent(messageLines.join('\n'))}`;
-    window.location.href = whatsappUrl;
+    openBuyNowForm(product, selectedSize, selectedColor);
 }
 
 function getAlternativeProducts(soldOutProduct, query) {
@@ -772,5 +1013,11 @@ document.addEventListener('click', (event) => {
     const hidden = wrap.querySelector('.selected-color-input, .modal-selected-color-input');
     if (hidden) {
         hidden.value = choice.getAttribute('data-color') || '';
+    }
+});
+
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+        closeBuyNowModal();
     }
 });
