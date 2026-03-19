@@ -1,9 +1,9 @@
-const CART_STORAGE_KEY = 'crocs_rwanda_cart_items';
+const CART_PAGE_STORAGE_KEY = 'crocs_rwanda_cart_items';
 const LAST_ORDER_ID_STORAGE_KEY = 'crocs_rwanda_last_order_id';
 
 class ShoppingCart {
     constructor() {
-        this.items = JSON.parse(localStorage.getItem(CART_STORAGE_KEY) || '[]');
+        this.items = JSON.parse(localStorage.getItem(CART_PAGE_STORAGE_KEY) || '[]');
         this.selectedItemIds = new Set();
         this.total = 0;
         this.init();
@@ -24,6 +24,7 @@ class ShoppingCart {
         this.setupSelectTools();
         this.setupVariantPickers();
         this.setupCheckoutFlow();
+        this.handleBuyNowIntent();
     }
 
     updateCartDisplay() {
@@ -160,7 +161,7 @@ class ShoppingCart {
     }
 
     saveCart() {
-        localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(this.items));
+        localStorage.setItem(CART_PAGE_STORAGE_KEY, JSON.stringify(this.items));
         this.updateCartCount();
         this.calculateTotal();
     }
@@ -452,6 +453,38 @@ class ShoppingCart {
             if (!itemId || !color) return;
             this.updateItemVariant(itemId, 'color', color);
         });
+    }
+
+    handleBuyNowIntent() {
+        const params = new URLSearchParams(window.location.search);
+        const buyNowId = this.getId(params.get('buyNow'));
+        const shouldOpenCheckout = params.get('checkout') === '1';
+
+        if (!buyNowId) {
+            return;
+        }
+
+        const exists = this.items.some((item) => this.getId(item.id) === buyNowId);
+        if (!exists) {
+            params.delete('buyNow');
+            params.delete('checkout');
+            const next = params.toString();
+            window.history.replaceState({}, '', window.location.pathname + (next ? `?${next}` : ''));
+            return;
+        }
+
+        this.selectOnlyItem(buyNowId);
+        this.updateCartDisplay();
+
+        if (shouldOpenCheckout) {
+            this.openCheckout();
+        }
+
+        params.delete('buyNow');
+        params.delete('checkout');
+        const nextQuery = params.toString();
+        const nextUrl = window.location.pathname + (nextQuery ? `?${nextQuery}` : '') + window.location.hash;
+        window.history.replaceState({}, '', nextUrl);
     }
 
     openCheckout() {

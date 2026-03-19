@@ -171,6 +171,69 @@
         document.getElementById('product-id').value = '';
     }
 
+    function setFeedback(node, message, tone = '') {
+        if (!node) return;
+        node.textContent = message || '';
+        node.classList.remove('success', 'error', 'info');
+        if (tone) {
+            node.classList.add(tone);
+        }
+    }
+
+    function parseListInput(value) {
+        if (Array.isArray(value)) {
+            return value.map((entry) => String(entry || '').trim()).filter(Boolean).join(', ');
+        }
+        return String(value || '').trim();
+    }
+
+    function normalizeBulkPayload(entry) {
+        const safe = entry && typeof entry === 'object' ? entry : {};
+        return {
+            name: String(safe.name || '').trim(),
+            price: Number(safe.price || 0),
+            stock: Number(safe.stock || 0),
+            category: String(safe.category || '').trim(),
+            image: String(safe.image || '').trim(),
+            colors: parseListInput(safe.colors),
+            sizes: parseListInput(safe.sizes),
+            description: String(safe.description || '').trim(),
+            rating: Number(safe.rating || 0),
+            reviews: Array.isArray(safe.reviews) ? safe.reviews : []
+        };
+    }
+
+    function validateProductPayload(payload) {
+        if (!payload.name || payload.name.length < 2) {
+            return 'Product name must be at least 2 characters.';
+        }
+        if (!Number.isFinite(payload.price) || payload.price < 0) {
+            return 'Product price must be a number greater than or equal to 0.';
+        }
+        if (!Number.isInteger(payload.stock) || payload.stock < 0) {
+            return 'Product stock must be a whole number 0 or higher.';
+        }
+        if (!Number.isFinite(payload.rating) || payload.rating < 0 || payload.rating > 5) {
+            return 'Product rating must be between 0 and 5.';
+        }
+        return '';
+    }
+
+    function getProductPayloadFromForm() {
+        return {
+            name: document.getElementById('product-name').value.trim(),
+            price: Number(document.getElementById('product-price').value || 0),
+            stock: Number(document.getElementById('product-stock').value || 0),
+            category: document.getElementById('product-category').value.trim(),
+            image: document.getElementById('product-image').value.trim(),
+            colors: document.getElementById('product-colors').value,
+            sizes: document.getElementById('product-sizes').value,
+            description: document.getElementById('product-description').value.trim(),
+            rating: 0,
+            reviews: []
+        };
+    }
+
     function setupProductForm() {
         const form = document.getElementById('product-form');
         const feedback = document.getElementById('product-feedback');
@@ -181,19 +244,15 @@
 
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
-            feedback.textContent = 'Saving...';
+            setFeedback(feedback, 'Saving...', 'info');
 
             const id = document.getElementById('product-id').value.trim();
-            const payload = {
-                name: document.getElementById('product-name').value.trim(),
-                price: Number(document.getElementById('product-price').value || 0),
-                stock: Number(document.getElementById('product-stock').value || 0),
-                category: document.getElementById('product-category').value.trim(),
-                image: document.getElementById('product-image').value.trim(),
-                colors: document.getElementById('product-colors').value,
-                sizes: document.getElementById('product-sizes').value,
-                description: document.getElementById('product-description').value.trim()
-            };
+            const payload = getProductPayloadFromForm();
+            const validationError = validateProductPayload(payload);
+            if (validationError) {
+                setFeedback(feedback, validationError, 'error');
+                return;
+            }
 
             try {
                 if (id) {
@@ -202,22 +261,294 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
                     });
-                    feedback.textContent = 'Product updated.';
+                    setFeedback(feedback, 'Product updated.', 'success');
                 } else {
                     await api('/api/products', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
                     });
-                    feedback.textContent = 'Product created.';
+                    setFeedback(feedback, 'Product created.', 'success');
                 }
 
                 clearProductForm();
                 await loadProducts();
                 await loadOverview();
             } catch (error) {
-                feedback.textContent = error.message;
+                setFeedback(feedback, error.message, 'error');
             }
+        });
+    }
+
+    function parseCsvLine(line) {
+        const fields = [];
+        let current = '';
+        let inQuotes = false;
+
+        for (let i = 0; i < line.length; i += 1) {
+            const ch = line[i];
+
+            if (ch === '"') {
+                if (inQuotes && line[i + 1] === '"') {
+                    current += '"';
+                    i += 1;
+                    continue;
+                }
+                inQuotes = !inQuotes;
+                continue;
+            }
+
+            if (ch === ',' && !inQuotes) {
+                fields.push(current.trim());
+                current = '';
+                continue;
+            }
+
+            current += ch;
+        }
+
+        fields.push(current.trim());
+        return fields;
+    }
+
+    function normalizeInlineList(value) {
+        return String(value || '')
+            .split('|')
+            .map((part) => part.trim())
+            .filter(Boolean)
+            .join(', ');
+    }
+
+    function parseNoCodeRows(rawText) {
+        const lines = String(rawText || '')
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .filter((line) => line);
+
+        if (!lines.length) {
+            return { records: [], rowErrors: ['Paste rows first.'] };
+        }
+
+        const first = lines[0].toLowerCase();
+        const hasHeader = first.includes('name') && first.includes('price') && first.includes('stock');
+        const dataLines = hasHeader ? lines.slice(1) : lines;
+        const rowErrors = [];
+        const records = [];
+
+        dataLines.forEach((line, index) => {
+            const rowNumber = hasHeader ? index + 2 : index + 1;
+            const columns = line.includes('\t')
+                ? line.split('\t').map((part) => part.trim())
+                : parseCsvLine(line);
+
+            if (columns.length < 3) {
+                rowErrors.push(`Row ${rowNumber}: expected at least name, price, stock.`);
+                return;
+            }
+
+            const [
+                name = '',
+                price = '',
+                stock = '',
+                category = '',
+                image = '',
+                colors = '',
+                sizes = '',
+                description = ''
+            ] = columns;
+
+            records.push(normalizeBulkPayload({
+                name,
+                price,
+                stock,
+                category,
+                image,
+                colors: normalizeInlineList(colors),
+                sizes: normalizeInlineList(sizes),
+                description
+            }));
+        });
+
+        return { records, rowErrors };
+    }
+
+    async function publishProductRecords(records) {
+        const existingByName = new Map(
+            state.products.map((product) => [String(product?.name || '').trim().toLowerCase(), product])
+        );
+        const failures = [];
+        let created = 0;
+        let updated = 0;
+
+        for (let i = 0; i < records.length; i += 1) {
+            const payload = normalizeBulkPayload(records[i]);
+            const validationError = validateProductPayload(payload);
+            if (validationError) {
+                failures.push(`Row ${i + 1}: ${validationError}`);
+                continue;
+            }
+
+            const key = payload.name.toLowerCase();
+            const existing = existingByName.get(key);
+
+            try {
+                if (existing?._id) {
+                    await api(`/api/products/${existing._id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    updated += 1;
+                } else {
+                    const result = await api('/api/products', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const newProduct = result?.product || {};
+                    created += 1;
+                    existingByName.set(key, newProduct);
+                }
+            } catch (error) {
+                failures.push(`Row ${i + 1}: ${error.message}`);
+            }
+        }
+
+        await loadProducts();
+        await loadOverview();
+
+        return { created, updated, failures };
+    }
+
+    function renderPublishSummary(feedback, summary, prefixErrors = []) {
+        const allFailures = [...prefixErrors, ...summary.failures];
+        if (!allFailures.length) {
+            setFeedback(feedback, `Publish complete. Created ${summary.created}, updated ${summary.updated}.`, 'success');
+            return;
+        }
+
+        const preview = allFailures.slice(0, 3).join(' | ');
+        const remainder = allFailures.length > 3 ? ` (+${allFailures.length - 3} more)` : '';
+        setFeedback(
+            feedback,
+            `Created ${summary.created}, updated ${summary.updated}, failed ${allFailures.length}. ${preview}${remainder}`,
+            'error'
+        );
+    }
+
+    function setupBulkProductPublisher() {
+        const input = document.getElementById('product-bulk-json');
+        const publishBtn = document.getElementById('product-bulk-publish');
+        const clearBtn = document.getElementById('product-bulk-clear');
+        const feedback = document.getElementById('product-bulk-feedback');
+        const rowsInput = document.getElementById('product-bulk-rows');
+        const fileInput = document.getElementById('product-bulk-file');
+        const filePublishBtn = document.getElementById('product-bulk-file-publish');
+        const rowsPublishBtn = document.getElementById('product-bulk-rows-publish');
+        const rowsClearBtn = document.getElementById('product-bulk-rows-clear');
+        const rowsTemplateBtn = document.getElementById('product-bulk-rows-template');
+        const rowsFeedback = document.getElementById('product-bulk-rows-feedback');
+        if (!input || !publishBtn || !clearBtn || !feedback) return;
+
+        clearBtn.addEventListener('click', () => {
+            input.value = '';
+            setFeedback(feedback, '');
+        });
+
+        publishBtn.addEventListener('click', async () => {
+            const raw = input.value.trim();
+            if (!raw) {
+                setFeedback(feedback, 'Paste JSON first.', 'error');
+                return;
+            }
+
+            let parsed;
+            try {
+                parsed = JSON.parse(raw);
+            } catch (error) {
+                setFeedback(feedback, 'Invalid JSON. Fix syntax and try again.', 'error');
+                return;
+            }
+
+            const records = Array.isArray(parsed)
+                ? parsed
+                : Array.isArray(parsed?.products)
+                    ? parsed.products
+                    : [];
+
+            if (!records.length) {
+                setFeedback(feedback, 'Provide a JSON array of products.', 'error');
+                return;
+            }
+
+            setFeedback(feedback, `Publishing ${records.length} products...`, 'info');
+            const summary = await publishProductRecords(records);
+            renderPublishSummary(feedback, summary);
+        });
+
+        if (!rowsInput || !rowsPublishBtn || !rowsClearBtn || !rowsTemplateBtn || !rowsFeedback) {
+            return;
+        }
+
+        rowsTemplateBtn.addEventListener('click', () => {
+            rowsInput.value = [
+                'name,price,stock,category,image,colors,sizes,description',
+                'Crocs Classic Clog,49.99,15,Clogs,,white|black|navy,40|41|42,Everyday comfort.',
+                'Crocs Bayaband,54.99,10,Sport,,black|grey,41|42|43,Sporty comfort for daily wear.'
+            ].join('\n');
+            setFeedback(rowsFeedback, 'Template inserted. Replace sample rows, then click Publish Rows.', 'info');
+        });
+
+        rowsClearBtn.addEventListener('click', () => {
+            rowsInput.value = '';
+            if (fileInput) fileInput.value = '';
+            setFeedback(rowsFeedback, '');
+        });
+
+        rowsPublishBtn.addEventListener('click', async () => {
+            const raw = rowsInput.value.trim();
+            const { records, rowErrors } = parseNoCodeRows(raw);
+
+            if (!records.length) {
+                setFeedback(rowsFeedback, rowErrors[0] || 'No valid rows found.', 'error');
+                return;
+            }
+
+            setFeedback(rowsFeedback, `Publishing ${records.length} rows...`, 'info');
+            const summary = await publishProductRecords(records);
+            renderPublishSummary(rowsFeedback, summary, rowErrors);
+        });
+
+        if (!fileInput || !filePublishBtn) {
+            return;
+        }
+
+        filePublishBtn.addEventListener('click', async () => {
+            const file = fileInput.files && fileInput.files[0];
+            if (!file) {
+                setFeedback(rowsFeedback, 'Select a CSV file first.', 'error');
+                return;
+            }
+
+            setFeedback(rowsFeedback, `Reading ${file.name}...`, 'info');
+
+            let text;
+            try {
+                text = await file.text();
+            } catch (error) {
+                setFeedback(rowsFeedback, 'Could not read the selected file.', 'error');
+                return;
+            }
+
+            const { records, rowErrors } = parseNoCodeRows(text);
+            if (!records.length) {
+                setFeedback(rowsFeedback, rowErrors[0] || 'No valid rows found in CSV.', 'error');
+                return;
+            }
+
+            setFeedback(rowsFeedback, `Publishing ${records.length} rows from ${file.name}...`, 'info');
+            const summary = await publishProductRecords(records);
+            renderPublishSummary(rowsFeedback, summary, rowErrors);
         });
     }
 
@@ -419,6 +750,7 @@
             setupTabs();
             setupLogout();
             setupProductForm();
+            setupBulkProductPublisher();
             bindProductActions();
             bindOrderActions();
             bindMessageActions();

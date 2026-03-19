@@ -1,4 +1,21 @@
 (function () {
+    function ensureBrandLogo(nav) {
+        const logo = nav.querySelector('.logo');
+        if (!logo || logo.querySelector('.logo-link')) return;
+
+        logo.innerHTML = `
+            <a class="logo-link" href="/" aria-label="Crocs Rwanda home">
+                <span class="logo-badge" aria-hidden="true">
+                    <img src="/images/logo.png" alt="" class="logo-mark">
+                </span>
+                <span class="logo-wordmark">
+                    <strong>CROCS RWANDA</strong>
+                    <small>Rwanda's home of comforts</small>
+                </span>
+            </a>
+        `;
+    }
+
     function ensureSearchBar(nav) {
         const menu = nav.querySelector('ul');
         if (!menu) return;
@@ -97,6 +114,7 @@
 
     document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('nav').forEach(function (nav) {
+            ensureBrandLogo(nav);
             ensureSearchBar(nav);
             setupNav(nav);
         });

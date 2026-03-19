@@ -399,7 +399,10 @@ function handleBuyNowSubmit(event) {
 
     const whatsappUrl = `https://wa.me/${SUPPORT_WHATSAPP_NUMBER}?text=${encodeURIComponent(messageLines.join('\n'))}`;
     closeBuyNowModal();
-    window.open(whatsappUrl, '_blank', 'noopener');
+    const whatsappWindow = window.open(whatsappUrl, '_blank', 'noopener');
+    if (!whatsappWindow) {
+        window.location.href = whatsappUrl;
+    }
 }
 
 function buyNow(productId, selectedSize = '', selectedColor = '') {
@@ -702,10 +705,10 @@ function displayProducts(items) {
                         ` : ''}
                         <p class="product-price">$${(Number(product.price) || 0).toFixed(2)}</p>
                         <div class="product-actions">
-                            <button onclick='buyNowFromCard(this, "${productId}")' class="checkout-btn product-buy-now-btn" aria-label="Buy ${product.name} now">Buy Now</button>
-                            <button onclick='addToCartFromCard(this, "${productId}")' class="add-to-cart-btn" aria-label="Add ${product.name} to cart">Add to Cart</button>
+                            <button type="button" data-action="buy-now-card" data-product-id="${productId}" class="checkout-btn product-buy-now-btn" aria-label="Buy ${product.name} now">Buy Now</button>
+                            <button type="button" data-action="add-to-cart-card" data-product-id="${productId}" class="add-to-cart-btn" aria-label="Add ${product.name} to cart">Add to Cart</button>
                         </div>
-                        <button onclick='openQuickView("${productId}")' class="quick-view-btn" aria-label="View full details for ${product.name}">View</button>
+                        <button type="button" data-action="quick-view" data-product-id="${productId}" class="quick-view-btn" aria-label="View full details for ${product.name}">View</button>
                     </div>
                 </div>
             `;
@@ -908,8 +911,8 @@ function openQuickView(productId) {
                         </div>
                     ` : ''}
                     <div class="product-actions">
-                        <button type="button" class="checkout-btn product-buy-now-btn" ${stock <= 0 ? 'disabled' : ''} onclick='buyNowFromModal(this, "${getProductId(product)}")'>${stock <= 0 ? 'Sold Out' : 'Buy Now'}</button>
-                        <button type="button" class="add-to-cart-btn" ${stock <= 0 ? 'disabled' : ''} onclick='addToCartFromModal(this, "${getProductId(product)}")'>${stock <= 0 ? 'Sold Out' : 'Add to Cart'}</button>
+                        <button type="button" class="checkout-btn product-buy-now-btn" ${stock <= 0 ? 'disabled' : ''} data-action="buy-now-modal" data-product-id="${getProductId(product)}">${stock <= 0 ? 'Sold Out' : 'Buy Now'}</button>
+                        <button type="button" class="add-to-cart-btn" ${stock <= 0 ? 'disabled' : ''} data-action="add-to-cart-modal" data-product-id="${getProductId(product)}">${stock <= 0 ? 'Sold Out' : 'Add to Cart'}</button>
                     </div>
                 </div>
             </div>
@@ -1015,6 +1018,37 @@ document.addEventListener('click', (event) => {
         hidden.value = choice.getAttribute('data-color') || '';
     }
 });
+
+document.addEventListener('click', (event) => {
+    const actionButton = event.target.closest('[data-action][data-product-id]');
+    if (!actionButton) {
+        return;
+    }
+
+    const productId = actionButton.getAttribute('data-product-id') || '';
+    if (!productId) {
+        return;
+    }
+
+    const action = actionButton.getAttribute('data-action');
+    if (action === 'buy-now-card') {
+        buyNowFromCard(actionButton, productId);
+    } else if (action === 'add-to-cart-card') {
+        addToCartFromCard(actionButton, productId);
+    } else if (action === 'quick-view') {
+        openQuickView(productId);
+    } else if (action === 'buy-now-modal') {
+        buyNowFromModal(actionButton, productId);
+    } else if (action === 'add-to-cart-modal') {
+        addToCartFromModal(actionButton, productId);
+    }
+});
+
+window.addToCartFromCard = addToCartFromCard;
+window.buyNowFromCard = buyNowFromCard;
+window.openQuickView = openQuickView;
+window.addToCartFromModal = addToCartFromModal;
+window.buyNowFromModal = buyNowFromModal;
 
 document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
