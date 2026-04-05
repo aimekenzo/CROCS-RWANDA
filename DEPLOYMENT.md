@@ -1,5 +1,15 @@
 # Deployment Checklist
 
+## Recommended Replacement For Render
+- Use `Railway` for the Node app and `MongoDB Atlas` for the database.
+- This project is a long-running Express server with MongoDB, so it fits Railway directly.
+- Avoid moving the whole app to a static-only host like Netlify unless you first split the backend out.
+
+## Portable Deploy Option
+- This repo now includes a `Dockerfile` and `.dockerignore`.
+- You can deploy the same container image to Railway, Fly.io, Koyeb, DigitalOcean App Platform, or any VPS/container host.
+- `railway.json` locks Railway to the committed Docker-based deploy settings and `/api/health` health check.
+
 ## Required Environment Variables
 - `PORT`
 - `MONGODB_URI`
@@ -22,6 +32,29 @@
 - Health check path is `/api/health`
 - Render will host the Node app only
 - MongoDB must be provided externally through `MONGODB_URI`
+
+## Railway Deploy Steps
+1. Push the current repo to GitHub.
+2. In Railway, create a new project from the GitHub repo.
+3. Railway will use the committed `railway.json` and `Dockerfile` for build/deploy behavior.
+4. Add environment variables:
+   `NODE_ENV=production`
+   `MONGODB_URI=...`
+   `ADMIN_USERNAME=...`
+   `ADMIN_PASSWORD=...`
+   `ADMIN_SESSION_SECRET=...`
+   `SMTP_HOST=...`
+   `SMTP_PORT=...`
+   `SMTP_SECURE=...`
+   `SMTP_USER=...`
+   `SMTP_PASS=...`
+   `EMAIL_FROM=...`
+   `ADMIN_ALERT_EMAIL=...`
+5. Attach a custom domain after the app is healthy.
+6. Test:
+   `https://your-domain-or-railway-url/api/health`
+7. Confirm admin login, order placement, tracking, and contact form in production.
+8. If the app is redeployed or restarted, it now handles shutdown signals cleanly before exit.
 
 ## Render Deploy Steps
 1. Push the current repo to GitHub.

@@ -49,6 +49,15 @@ npm run check:e2e
 npm run check:email
 ```
 
+## Deploy Without Render
+- Recommended stack: `Railway` for the Node app and `MongoDB Atlas` for the database.
+- This repo now includes a `Dockerfile`, so you can also deploy it to any container host without changing application code.
+- `railway.json` pins Railway to the repo's Docker-based deploy settings and health check.
+- Health check endpoint:
+```text
+/api/health
+```
+
 ## Pre-Launch Checks
 - `npm run check:syntax` validates the main backend and frontend scripts.
 - `npm run check:smoke` probes the key public routes and health endpoint on a running server.

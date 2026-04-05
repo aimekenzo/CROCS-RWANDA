@@ -24,6 +24,9 @@
     "url": "https://github.com/aimekenzo/CROCS-RWANDA/issues"
   },
   "homepage": "https://github.com/aimekenzo/CROCS-RWANDA#readme",
+  "engines": {
+    "node": "20.x"
+  },
   "dependencies": {
     "dotenv": "^16.5.0",
     "ejs": "^3.1.10",

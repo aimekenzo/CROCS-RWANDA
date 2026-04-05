@@ -988,6 +988,41 @@ app.use((err, req, res, next) => {
 
 // Start the server
 const PORT = Number(process.env.PORT) || 3001;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
+
+let isShuttingDown = false;
+
+function shutdown(signal) {
+    if (isShuttingDown) {
+        return;
+    }
+
+    isShuttingDown = true;
+    console.log(`Received ${signal}. Starting graceful shutdown.`);
+
+    server.close(async (serverError) => {
+        if (serverError) {
+            console.error('Error while closing HTTP server:', serverError);
+            process.exit(1);
+        }
+
+        try {
+            await mongoose.connection.close();
+            console.log('MongoDB connection closed.');
+            process.exit(0);
+        } catch (dbError) {
+            console.error('Error while closing MongoDB connection:', dbError);
+            process.exit(1);
+        }
+    });
+
+    setTimeout(() => {
+        console.error('Graceful shutdown timed out. Forcing exit.');
+        process.exit(1);
+    }, 10000).unref();
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
